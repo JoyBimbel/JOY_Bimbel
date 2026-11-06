@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>BimbelKu</title>
+<title>Joy Bimbel</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -789,7 +789,7 @@ function buildInvoiceHtml(inv, target) {
     <div class="bg-white">
       <div class="flex justify-between items-start border-b pb-4 mb-4">
         <div>
-          <h2 class="text-2xl font-bold text-indigo-600">BIMBELKU</h2>
+          <h2 class="text-2xl font-bold text-indigo-600">Joy Bimbel</h2>
           <p class="text-xs text-gray-600">Jl. Pendidikan No. 1, Jakarta</p>
           <p class="text-xs text-gray-600">Telp: 0812-3456-7890</p>
         </div>
@@ -831,7 +831,7 @@ function buildInvoiceHtml(inv, target) {
         </div>
       </div>
       <div class="mt-6 pt-4 border-t text-xs text-gray-500">
-        <p><b>Pembayaran:</b> BCA 1234567890 a.n. BimbelKu</p>
+        <p><b>Pembayaran:</b> BCA 1234567890 a.n. Joy Bimbel</p>
         <p class="mt-1">Terima kasih atas kepercayaan Anda 🙏</p>
       </div>
     </div>`;
@@ -842,7 +842,7 @@ function buildWaUrl(inv, target) {
   const wa = formatWa(nomor);
   const total = rupiah(inv.total);
   const nama = inv.jenis==='siswa' ? (target?.nama_orang_tua||target?.nama||'') : (target?.nama||'');
-  const msg = `Halo Bpk/Ibu ${nama},\n\nBerikut invoice *${inv.no_invoice}* periode *${inv.periode}* dengan total *${total}*.\n\nStatus: ${inv.status==='lunas'?'LUNAS':'BELUM BAYAR'}\n\nTerima kasih 🙏\nBimbelKu`;
+  const msg = `Halo Bpk/Ibu ${nama},\n\nBerikut invoice *${inv.no_invoice}* periode *${inv.periode}* dengan total *${total}*.\n\nStatus: ${inv.status==='lunas'?'LUNAS':'BELUM BAYAR'}\n\nTerima kasih 🙏\nJoy Bimbel`;
   return `https://wa.me/${wa}?text=${encodeURIComponent(msg)}`;
 }
 
