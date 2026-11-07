@@ -38,7 +38,6 @@
 </head>
 <body class="bg-slate-100">
 
-<!-- PENANGKAP ERROR GLOBAL -->
 <div id="global-error" class="hidden fixed top-0 left-0 w-full bg-red-600 text-white p-4 z-[9999] text-center font-bold shadow-lg"></div>
 
 <!-- LOGIN -->
@@ -103,7 +102,7 @@ window.onerror = function(msg, url, line, col, error) {
 };
 
 // ================= GLOBAL DATA =================
-let DB = { profile: null, siswa: [], tentor: [], jadwal: [], absensi: [], invoice: [], laporan: [] };
+let DB = { profile: null, siswa: [], tentor: [], jadwal: [], absensi: [], invoice: [], laporan: [], users: [] };
 let currentPage = 'dashboard';
 let absensiDate = new Date().toISOString().slice(0,10);
 let realtimeChannel = null;
@@ -125,17 +124,13 @@ async function checkSession() {
     if (session) {
       await loadAllData(session.user);
     } else {
-      const lp = document.getElementById('login-page');
-      const ap = document.getElementById('app-page');
-      const ldp = document.getElementById('loading-page');
-      if (lp) lp.classList.remove('hidden');
-      if (ap) ap.classList.add('hidden');
-      if (ldp) ldp.classList.add('hidden');
+      document.getElementById('login-page').classList.remove('hidden');
+      document.getElementById('app-page').classList.add('hidden');
+      document.getElementById('loading-page').classList.add('hidden');
     }
   } catch (e) {
     console.error(e);
-    const lp = document.getElementById('login-page');
-    if (lp) lp.classList.remove('hidden');
+    document.getElementById('login-page').classList.remove('hidden');
   }
 }
 
@@ -144,8 +139,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
   const f = e.target;
   const btn = document.getElementById('btn-login');
   const btnText = document.getElementById('btn-text');
-  if (btn) btn.disabled = true; 
-  if (btnText) btnText.innerHTML = `Memverifikasi...`;
+  btn.disabled = true; btnText.innerHTML = `Memverifikasi...`;
 
   const email = f.email.value.trim();
   const password = f.password.value;
@@ -156,49 +150,38 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     await loadAllData(data.user);
   } catch (err) {
     alert("Login Gagal: " + err.message);
-    const loginError = document.getElementById('login-error');
-    if (loginError) loginError.classList.remove('hidden');
-    if (btn) btn.disabled = false; 
-    if (btnText) btnText.innerText = 'Masuk';
+    document.getElementById('login-error').classList.remove('hidden');
+    btn.disabled = false; btnText.innerText = 'Masuk';
   }
 });
 
 async function loadAllData(user) {
   try {
-    const lp = document.getElementById('login-page');
-    if (lp) lp.classList.add('hidden');
-    
+    document.getElementById('login-page').classList.add('hidden');
     const loadingPage = document.getElementById('loading-page');
-    if (loadingPage) {
-      loadingPage.classList.remove('hidden'); 
-      setTimeout(() => loadingPage.classList.remove('opacity-0'), 50);
-    }
+    loadingPage.classList.remove('hidden'); setTimeout(() => loadingPage.classList.remove('opacity-0'), 50);
 
     const { data: profile, error: profErr } = await supabaseClient.from('profiles').select('*').eq('id', user.id).single();
-    
-    if (profErr || !profile) {
-      throw new Error("Profil Anda belum terdaftar di tabel 'profiles'.");
-    }
+    if (profErr || !profile) throw new Error("Profil Anda belum terdaftar.");
     DB.profile = profile;
 
-    const [resSiswa, resTentor, resJadwal, resAbsensi, resInvoice, resLaporan] = await Promise.all([
+    const [resSiswa, resTentor, resJadwal, resAbsensi, resInvoice, resLaporan, resUsers] = await Promise.all([
       supabaseClient.from('siswa').select('*').order('nama'),
       supabaseClient.from('tentor').select('*').order('nama'),
       supabaseClient.from('jadwal').select('*'),
       supabaseClient.from('absensi').select('*'),
       supabaseClient.from('invoice').select('*').order('created_at', { ascending: false }),
-      supabaseClient.from('laporan').select('*').order('created_at', { ascending: false })
+      supabaseClient.from('laporan').select('*').order('created_at', { ascending: false }),
+      supabaseClient.from('profiles').select('*').order('nama')
     ]);
 
     DB.siswa = resSiswa.data || []; DB.tentor = resTentor.data || []; DB.jadwal = resJadwal.data || [];
     DB.absensi = resAbsensi.data || []; DB.invoice = resInvoice.data || []; DB.laporan = resLaporan.data || [];
+    DB.users = resUsers.data || [];
 
     bootApp();
     
-    if (realtimeChannel) {
-      await supabaseClient.removeChannel(realtimeChannel);
-    }
-
+    if (realtimeChannel) await supabaseClient.removeChannel(realtimeChannel);
     realtimeChannel = supabaseClient.channel('custom-all-channel')
       .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
         clearTimeout(refreshTimeout);
@@ -215,17 +198,11 @@ async function loadAllData(user) {
 async function logout() { 
   if (!confirm('Apakah Anda yakin ingin keluar?')) return; 
   try {
-    if (realtimeChannel) {
-      await supabaseClient.removeChannel(realtimeChannel);
-      realtimeChannel = null;
-    }
+    if (realtimeChannel) { await supabaseClient.removeChannel(realtimeChannel); realtimeChannel = null; }
     await supabaseClient.removeAllChannels();
     await supabaseClient.auth.signOut(); 
     location.reload(); 
-  } catch (error) {
-    console.error("Gagal logout:", error);
-    location.reload(); 
-  }
+  } catch (error) { location.reload(); }
 }
 
 // ================= APP ROUTING =================
@@ -235,16 +212,11 @@ function bootApp() {
   
   setTimeout(() => {
     if (loadingPage) loadingPage.classList.add('hidden');
-    
     const appPage = document.getElementById('app-page');
-    if (appPage) {
-      appPage.classList.remove('hidden'); 
-      setTimeout(() => appPage.classList.remove('opacity-0'), 50);
-    }
+    if (appPage) { appPage.classList.remove('hidden'); setTimeout(() => appPage.classList.remove('opacity-0'), 50); }
     
     const sidebarRole = document.getElementById('sidebar-role');
     if (sidebarRole && DB.profile) sidebarRole.textContent = DB.profile.role.toUpperCase() + ' - ' + DB.profile.nama;
-    
     const mobileRole = document.getElementById('mobile-role');
     if (mobileRole && DB.profile) mobileRole.textContent = DB.profile.role;
     
@@ -260,7 +232,7 @@ function renderNav() {
     {id:'tentor', label:'Tentor', icon:'user-cog'}, {id:'jadwal', label:'Jadwal', icon:'calendar'},
     {id:'absensi', label:'Absensi', icon:'clipboard-check'}, {id:'laporan_tentor', label:'Laporan Mengajar', icon:'file-check'},
     {id:'invoice', label:'Invoice', icon:'file-text'}, {id:'keuangan', label:'Laporan Keuangan', icon:'bar-chart-3'},
-    {id:'backup', label:'Backup Data', icon:'database'}
+    {id:'akun', label:'Akun & Akses', icon:'shield'}, {id:'backup', label:'Backup Data', icon:'database'}
   ];
   const tentorMenus = [
     {id:'dashboard', label:'Dashboard', icon:'home'}, {id:'siswa', label:'Siswa', icon:'users'},
@@ -284,13 +256,10 @@ function toggleSidebar() { const s = document.getElementById('sidebar'); if (s) 
 // ================= MODAL =================
 let modalSubmit = null;
 function openModal(title, body, onSubmit) {
-  const mTitle = document.getElementById('modal-title');
-  if (mTitle) mTitle.textContent = title; 
-  const mBody = document.getElementById('modal-body');
-  if (mBody) mBody.innerHTML = body;
+  const mTitle = document.getElementById('modal-title'); if (mTitle) mTitle.textContent = title; 
+  const mBody = document.getElementById('modal-body'); if (mBody) mBody.innerHTML = body;
   modalSubmit = onSubmit; 
-  const m = document.getElementById('modal');
-  if (m) m.classList.remove('hidden'); 
+  const m = document.getElementById('modal'); if (m) m.classList.remove('hidden'); 
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 function closeModal() { const m = document.getElementById('modal'); if (m) m.classList.add('hidden'); modalSubmit = null; }
@@ -300,7 +269,7 @@ document.getElementById('modal-body').addEventListener('submit', (e) => { e.prev
 function renderPage() {
   const content = document.getElementById('content');
   if (!content) return;
-  const pages = { dashboard: renderDashboard, siswa: () => renderSiswa(), tentor: () => renderTentor(), jadwal: () => renderJadwal(), absensi: () => renderAbsensi(), invoice: () => renderInvoice(), keuangan: () => renderLaporanKeuangan(), backup: () => renderBackup(), laporan_tentor: () => renderLaporanTentor() };
+  const pages = { dashboard: renderDashboard, siswa: () => renderSiswa(), tentor: () => renderTentor(), jadwal: () => renderJadwal(), absensi: () => renderAbsensi(), invoice: () => renderInvoice(), keuangan: () => renderLaporanKeuangan(), akun: () => renderAkun(), backup: () => renderBackup(), laporan_tentor: () => renderLaporanTentor() };
   content.innerHTML = (pages[currentPage] || renderDashboard)();
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -321,6 +290,110 @@ function renderDashboard() {
         <div class="bg-white rounded-xl p-4 border"><div class="text-xs text-gray-500 mb-2">Total Laporan</div><div class="text-xl font-bold text-orange-600">${DB.laporan.length}</div></div>
       </div>
     </div>`;
+}
+
+// ================= AKUN & AKSES (FITUR BARU) =================
+function renderAkun() {
+  return `<div>
+    <div class="flex justify-between items-center mb-4">
+      <div><h1 class="text-2xl font-bold">Akun & Akses</h1><p class="text-gray-500 text-sm">Kelola user yang bisa login ke sistem</p></div>
+      <button onclick="openUserForm()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Tambah Akun</button>
+    </div>
+    <div class="bg-white rounded-xl border overflow-hidden"><table class="w-full text-sm">
+      <thead class="bg-gray-50"><tr><th class="text-left px-4 py-3">Nama</th><th class="text-left px-4 py-3">Email</th><th class="text-left px-4 py-3">Role</th><th class="text-right px-4 py-3">Aksi</th></tr></thead>
+      <tbody>${DB.users.map(u=>`
+        <tr class="border-t">
+          <td class="px-4 py-3 font-medium">${escapeHtml(u.nama)}</td>
+          <td class="px-4 py-3">${escapeHtml(u.email)}</td>
+          <td class="px-4 py-3"><span class="px-2 py-1 text-xs rounded ${u.role==='admin'?'bg-rose-100 text-rose-700':'bg-emerald-100 text-emerald-700'}">${u.role}</span></td>
+          <td class="px-4 py-3 text-right whitespace-nowrap">
+            ${u.email !== 'ricokristanto18@gmail.com' ? `
+              <button onclick="resetPass('${u.email}')" class="text-blue-600 hover:bg-blue-50 px-2 py-1 rounded text-xs border border-blue-200 mr-1">Reset Pass</button>
+              <button onclick="hapusAkun('${u.email}', '${u.nama}')" class="text-red-600 hover:bg-red-50 p-1.5 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+            ` : '<span class="text-xs text-gray-400">Admin Utama</span>'}
+          </td>
+        </tr>`).join('')}</tbody>
+    </table></div>
+  </div>`;
+}
+
+function openUserForm() {
+  const body = `<form>
+    <div class="space-y-3">
+      <div><label class="text-sm">Nama Lengkap *</label><input name="nama" required class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+      <div><label class="text-sm">Email *</label><input name="email" type="email" required class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+      <div><label class="text-sm">Password Awal *</label><input name="password" required class="w-full border rounded-lg px-3 py-2 mt-1" placeholder="Minimal 6 karakter" /></div>
+      <div><label class="text-sm">Role *</label>
+        <select name="role" class="w-full border rounded-lg px-3 py-2 mt-1">
+          <option value="tentor">Tentor</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <button type="submit" class="w-full bg-orange-600 text-white py-2 rounded-lg font-semibold mt-4">Buat Akun</button>
+    </div></form>`;
+  openModal('Tambah Akun Baru', body, simpanUser);
+}
+
+async function simpanUser(e) {
+  e.preventDefault();
+  const f = e.target;
+  const email = f.email.value.trim();
+  const pass = f.password.value;
+  const nama = f.nama.value;
+  const role = f.role.value;
+
+  const tempClient = supabase.createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false, autoRefreshToken: false } });
+
+  try {
+    const { data, error } = await tempClient.auth.signUp({ email, password: pass });
+    if (error) throw error;
+    
+    const { error: profErr } = await supabaseClient.from('profiles').insert([{ 
+      id: data.user.id, nama: nama, role: role, email: email 
+    }]);
+    if (profErr) throw profErr;
+
+    alert("✅ Akun berhasil dibuat! User tersebut sekarang sudah bisa login.");
+    closeModal();
+    loadAllData({ id: DB.profile.id }); 
+  } catch (err) {
+    alert("Gagal membuat akun: " + err.message);
+  }
+}
+
+// FITUR RESET PASSWORD VIA ADMIN
+async function resetPass(email) {
+  const newPass = prompt(`Masukkan password baru untuk akun ${email}:\n(Minimal 6 karakter)`);
+  if (!newPass) return;
+  if (newPass.length < 6) { alert('Password terlalu pendek! Minimal 6 karakter.'); return; }
+
+  try {
+    // Memanggil fungsi SQL yang sudah kita buat di Supabase (Langkah 1)
+    const { error } = await supabaseClient.rpc('admin_reset_password', { 
+      user_email: email, 
+      new_password: newPass 
+    });
+    if (error) throw error;
+    alert(`✅ Password untuk ${email} berhasil diubah menjadi: ${newPass}\n\nSilakan beritahu password baru ini kepada yang bersangkutan.`);
+  } catch (err) {
+    alert("Gagal mereset password: " + err.message);
+  }
+}
+
+// FITUR HAPUS AKUN VIA ADMIN
+async function hapusAkun(email, nama) {
+  if (!confirm(`Yakin ingin menghapus akun ${nama} (${email}) secara permanen?\n\nOrang ini tidak akan bisa login lagi.`)) return;
+
+  try {
+    // Memanggil fungsi SQL yang sudah kita buat di Supabase (Langkah 1)
+    const { error } = await supabaseClient.rpc('delete_user_by_admin', { user_email: email });
+    if (error) throw error;
+    
+    alert(`✅ Akun ${nama} berhasil dihapus permanen.`);
+    loadAllData({ id: DB.profile.id }); // Refresh data user
+  } catch (err) {
+    alert("Gagal menghapus akun: " + err.message);
+  }
 }
 
 // ================= CRUD FUNCTIONS =================
