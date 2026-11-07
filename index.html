@@ -401,7 +401,123 @@ function renderDashboard() {
     </div>`;
 }
 
-// ================= AKUN & AKSES (RESPONSIVE) =================
+// ================= BACKUP DATA (FUNGSI REAL) =================
+function renderBackup() {
+  return `<div>
+    <h1 class="text-2xl font-bold mb-1">Backup Data</h1>
+    <p class="text-gray-500 mb-6 text-sm">Unduh data bimbel Anda sebagai cadangan</p>
+    
+    <div class="bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl p-6 text-white mb-6">
+      <h2 class="font-bold text-lg mb-2 flex items-center gap-2"><i data-lucide="download-cloud" class="w-5 h-5"></i> Backup Semua Data</h2>
+      <p class="text-sm text-orange-100 mb-4">Unduh seluruh data (siswa, tentor, jadwal, absensi, invoice, laporan) dalam satu file JSON. Cocok untuk arsip lengkap.</p>
+      <button onclick="downloadAllBackup()" class="bg-white text-orange-600 px-5 py-2.5 rounded-lg font-semibold hover:bg-orange-50 transition shadow-md">
+        📦 Download Semua (JSON)
+      </button>
+    </div>
+    
+    <h2 class="font-bold text-lg mb-3 flex items-center gap-2"><i data-lucide="table" class="w-5 h-5 text-gray-600"></i> Download per Tabel (CSV)</h2>
+    <p class="text-sm text-gray-500 mb-4">Format CSV bisa langsung dibuka di Microsoft Excel atau Google Sheets.</p>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      ${backupCard('siswa', 'Data Siswa', 'users', 'blue', DB.siswa.length)}
+      ${backupCard('tentor', 'Data Tentor', 'user-cog', 'emerald', DB.tentor.length)}
+      ${backupCard('jadwal', 'Data Jadwal', 'calendar', 'purple', DB.jadwal.length)}
+      ${backupCard('absensi', 'Data Absensi', 'clipboard-check', 'amber', DB.absensi.length)}
+      ${backupCard('invoice', 'Invoice & Slip Gaji', 'file-text', 'rose', DB.invoice.length)}
+      ${backupCard('laporan', 'Laporan Mengajar', 'file-check', 'indigo', DB.laporan.length)}
+    </div>
+    
+    <div class="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
+      <div class="flex items-start gap-3">
+        <i data-lucide="info" class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5"></i>
+        <div class="text-sm text-blue-800">
+          <p class="font-semibold mb-1">Tips Backup:</p>
+          <ul class="list-disc list-inside space-y-1 text-blue-700">
+            <li>Lakukan backup rutin setiap minggu (misal setiap Sabtu malam).</li>
+            <li>Simpan file backup di <b>2 tempat</b>, contoh: laptop + Google Drive.</li>
+            <li>File CSV bisa dibuka dengan Excel/Google Sheets untuk diperiksa.</li>
+            <li>File JSON lebih lengkap (termasuk relasi antar tabel).</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function backupCard(table, label, icon, color, count) {
+  return `
+    <div class="bg-white rounded-xl border p-4 hover:shadow-md transition">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="bg-${color}-100 text-${color}-600 p-2 rounded-lg"><i data-lucide="${icon}" class="w-5 h-5"></i></div>
+        <div class="flex-1 min-w-0">
+          <div class="font-semibold text-sm truncate">${label}</div>
+          <div class="text-xs text-gray-500">${count} data</div>
+        </div>
+      </div>
+      <button onclick="downloadCSV('${table}')" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm py-2 rounded-lg font-semibold transition flex items-center justify-center gap-2">
+        <i data-lucide="download" class="w-4 h-4"></i> Download CSV
+      </button>
+    </div>
+  `;
+}
+
+// Fungsi untuk download CSV
+function downloadCSV(table) {
+  const data = DB[table] || [];
+  if (data.length === 0) { alert(`Tidak ada data ${table} untuk diunduh.`); return; }
+
+  const allKeys = [...new Set(data.flatMap(obj => Object.keys(obj)))];
+  const csvRows = [];
+  csvRows.push(allKeys.map(h => `"${h}"`).join(','));
+  
+  data.forEach(row => {
+    const values = allKeys.map(h => {
+      let val = row[h];
+      if (val === null || val === undefined) val = '';
+      if (typeof val === 'object') val = JSON.stringify(val);
+      return `"${String(val).replace(/"/g, '""')}"`;
+    });
+    csvRows.push(values.join(','));
+  });
+
+  const csvContent = '\uFEFF' + csvRows.join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  const date = new Date().toISOString().slice(0,10);
+  link.download = `JoyBimbel_${table}_${date}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+// Fungsi untuk download semua data (JSON)
+function downloadAllBackup() {
+  const backup = {
+    exported_at: new Date().toISOString(),
+    version: '1.0',
+    app: 'Joy Bimbel',
+    data: {
+      siswa: DB.siswa,
+      tentor: DB.tentor,
+      jadwal: DB.jadwal,
+      absensi: DB.absensi,
+      invoice: DB.invoice,
+      laporan: DB.laporan,
+      settings: DB.settings
+    }
+  };
+
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  const date = new Date().toISOString().slice(0,10);
+  link.download = `JoyBimbel_BackupLengkap_${date}.json`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+// ================= AKUN & AKSES =================
 function renderAkun() {
   return `<div>
     <div class="flex justify-between items-center mb-4">
@@ -409,7 +525,6 @@ function renderAkun() {
       <button onclick="openUserForm()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Tambah</button>
     </div>
     
-    <!-- Mobile Card View -->
     <div class="md:hidden space-y-3">
       ${DB.users.map(u=>`
         <div class="bg-white rounded-xl border p-4">
@@ -429,7 +544,6 @@ function renderAkun() {
       `).join('')}
     </div>
     
-    <!-- Desktop Table View -->
     <div class="hidden md:block bg-white rounded-xl border overflow-hidden">
       <table class="w-full text-sm">
         <thead class="bg-gray-50"><tr><th class="text-left px-4 py-3">Nama</th><th class="text-left px-4 py-3">Email</th><th class="text-left px-4 py-3">Role</th><th class="text-right px-4 py-3">Aksi</th></tr></thead>
@@ -587,7 +701,7 @@ async function hapusLaporan(id) {
   await supabaseClient.from('laporan').delete().eq('id', id);
 }
 
-// ================= INVOICE (RESPONSIVE) =================
+// ================= INVOICE =================
 function renderInvoice() {
   const inv = DB.invoice;
   const siswas = DB.siswa, tentors = DB.tentor;
@@ -597,7 +711,6 @@ function renderInvoice() {
       <button onclick="openInvoiceForm()" class="bg-rose-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Buat</button>
     </div>
     
-    <!-- Mobile Card View -->
     <div class="md:hidden space-y-3">
       ${inv.length === 0 ? '<div class="text-center text-gray-400 py-8 bg-white border rounded-xl">Belum ada data.</div>' : 
       inv.map(i=>{
@@ -624,7 +737,6 @@ function renderInvoice() {
       }).join('')}
     </div>
     
-    <!-- Desktop Table View -->
     <div class="hidden md:block bg-white rounded-xl border overflow-hidden">
       <table class="w-full text-sm">
         <thead class="bg-gray-50 text-gray-600"><tr>
@@ -873,11 +985,7 @@ function renderLaporanKeuangan() {
   </div>`;
 }
 
-function renderBackup() {
-  return `<div><h1 class="text-2xl font-bold mb-4">Backup Data (CSV)</h1><p class="text-sm text-gray-500">Data tersimpan aman di Supabase Cloud.</p></div>`;
-}
-
-// ================= CRUD SISWA (RESPONSIVE) =================
+// ================= CRUD SISWA =================
 function renderSiswa() {
   const role = DB.profile ? DB.profile.role : 'tentor';
   return `<div>
@@ -886,7 +994,6 @@ function renderSiswa() {
       ${role==='admin'?`<button onclick="openSiswaForm()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Tambah</button>`:''}
     </div>
     
-    <!-- Mobile Card View -->
     <div class="md:hidden space-y-3">
       ${DB.siswa.length === 0 ? '<div class="text-center text-gray-400 py-8 bg-white border rounded-xl">Belum ada siswa.</div>' : 
       DB.siswa.map(s=>`
@@ -898,8 +1005,8 @@ function renderSiswa() {
             </div>
             ${role==='admin'?`
             <div class="flex gap-1 flex-shrink-0">
-              <button onclick="openSiswaForm('${s.id}')" class="text-orange-600 p-2.5 bg-orange-50 hover:bg-orange-100 rounded-lg border border-orange-200" title="Edit"><i data-lucide="pencil" class="w-4 h-4"></i></button>
-              <button onclick="deleteRecord('siswa','${s.id}')" class="text-red-600 p-2.5 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200" title="Hapus"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              <button onclick="openSiswaForm('${s.id}')" class="text-orange-600 p-2.5 bg-orange-50 hover:bg-orange-100 rounded-lg border border-orange-200"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+              <button onclick="deleteRecord('siswa','${s.id}')" class="text-red-600 p-2.5 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
             </div>`:''}
           </div>
           <div class="text-sm space-y-1.5 pt-2 border-t">
@@ -910,7 +1017,6 @@ function renderSiswa() {
       `).join('')}
     </div>
     
-    <!-- Desktop Table View -->
     <div class="hidden md:block bg-white rounded-xl border overflow-hidden">
       <table class="w-full text-sm">
         <thead class="bg-gray-50">
@@ -963,7 +1069,7 @@ function openSiswaForm(id) {
   openModal(editing?'Edit Siswa':'Tambah Siswa', body, simpanSiswa);
 }
 
-// ================= CRUD TENTOR (RESPONSIVE) =================
+// ================= CRUD TENTOR =================
 function renderTentor() {
   return `<div>
     <div class="flex justify-between items-center mb-4">
@@ -971,7 +1077,6 @@ function renderTentor() {
       <button onclick="openTentorForm()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Tambah</button>
     </div>
     
-    <!-- Mobile Card View -->
     <div class="md:hidden space-y-3">
       ${DB.tentor.length === 0 ? '<div class="text-center text-gray-400 py-8 bg-white border rounded-xl">Belum ada tentor.</div>' : 
       DB.tentor.map(t=>`
@@ -993,7 +1098,6 @@ function renderTentor() {
       `).join('')}
     </div>
     
-    <!-- Desktop Table View -->
     <div class="hidden md:block bg-white rounded-xl border overflow-hidden">
       <table class="w-full text-sm">
         <thead class="bg-gray-50"><tr>
