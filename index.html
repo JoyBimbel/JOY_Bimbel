@@ -5,11 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Joy Bimbel</title>
 
+<!-- SCRIPT SUPABASE (DIPERBAIKI) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
   const supabaseUrl = 'https://jsgtihamclghgurhvwwi.supabase.co';
   const supabaseKey = 'sb_publishable_K3U2e1vIcuyE5CZLybWeVA_XthgH50z';
-  const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+  // Perhatikan namanya sekarang menjadi supabaseClient (bukan supabase)
+  const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 </script>
 
 <script src="https://cdn.tailwindcss.com"></script>
@@ -104,7 +106,8 @@ const HARI = ['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'];
 
 // ================= AUTH =================
 async function checkSession() {
-  const { data: { session } } = await supabase.auth.getSession();
+  // MENGGUNAKAN supabaseClient
+  const { data: { session } } = await supabaseClient.auth.getSession();
   if (session) {
     await loadAllData(session.user);
   } else {
@@ -125,11 +128,12 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
   const password = f.password.value;
 
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    // MENGGUNAKAN supabaseClient
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
     if (error) throw error;
     await loadAllData(data.user);
   } catch (err) {
-    alert("Login Gagal: " + err.message); // Menampilkan error asli
+    alert("Login Gagal: " + err.message);
     document.getElementById('login-error').classList.remove('hidden');
     btn.disabled = false; btnText.innerText = 'Masuk';
   }
@@ -141,22 +145,22 @@ async function loadAllData(user) {
     const loadingPage = document.getElementById('loading-page');
     loadingPage.classList.remove('hidden'); setTimeout(() => loadingPage.classList.remove('opacity-0'), 50);
 
-    // Cek Profil
-    const { data: profile, error: profErr } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    // MENGGUNAKAN supabaseClient
+    const { data: profile, error: profErr } = await supabaseClient.from('profiles').select('*').eq('id', user.id).single();
     
     if (profErr || !profile) {
-      throw new Error("Profil Anda belum terdaftar di tabel 'profiles'. Silakan hubungi Admin.");
+      throw new Error("Profil Anda belum terdaftar di tabel 'profiles'.");
     }
     DB.profile = profile;
 
-    // Ambil Semua Data
+    // MENGGUNAKAN supabaseClient
     const [resSiswa, resTentor, resJadwal, resAbsensi, resInvoice, resLaporan] = await Promise.all([
-      supabase.from('siswa').select('*').order('nama'),
-      supabase.from('tentor').select('*').order('nama'),
-      supabase.from('jadwal').select('*'),
-      supabase.from('absensi').select('*'),
-      supabase.from('invoice').select('*').order('created_at', { ascending: false }),
-      supabase.from('laporan').select('*').order('created_at', { ascending: false })
+      supabaseClient.from('siswa').select('*').order('nama'),
+      supabaseClient.from('tentor').select('*').order('nama'),
+      supabaseClient.from('jadwal').select('*'),
+      supabaseClient.from('absensi').select('*'),
+      supabaseClient.from('invoice').select('*').order('created_at', { ascending: false }),
+      supabaseClient.from('laporan').select('*').order('created_at', { ascending: false })
     ]);
 
     DB.siswa = resSiswa.data || []; DB.tentor = resTentor.data || []; DB.jadwal = resJadwal.data || [];
@@ -164,20 +168,20 @@ async function loadAllData(user) {
 
     bootApp();
     
-    // Realtime Listener
-    supabase.channel('custom-all-channel')
+    // MENGGUNAKAN supabaseClient
+    supabaseClient.channel('custom-all-channel')
       .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
         loadAllData(user);
       }).subscribe();
 
   } catch (err) {
     alert("Error Load Data: " + err.message);
-    await supabase.auth.signOut();
+    await supabaseClient.auth.signOut();
     location.reload();
   }
 }
 
-function logout() { if (!confirm('Logout?')) return; supabase.auth.signOut(); location.reload(); }
+function logout() { if (!confirm('Logout?')) return; supabaseClient.auth.signOut(); location.reload(); }
 
 // ================= APP ROUTING =================
 function bootApp() {
@@ -257,14 +261,14 @@ function renderDashboard() {
 // ================= CRUD FUNCTIONS =================
 async function deleteRecord(table, id) {
   if (!confirm('Yakin hapus data ini?')) return;
-  await supabase.from(table).delete().eq('id', id);
+  await supabaseClient.from(table).delete().eq('id', id);
 }
 
 async function simpanSiswa(e) {
   const f = e.target; const id = f.dataset.id;
   const data = { nama: f.nama.value, kelas: f.kelas.value, nama_orang_tua: f.nama_orang_tua.value, tentor_id: f.tentor_id.value || null, aktif: true };
-  if (id) await supabase.from('siswa').update(data).eq('id', id);
-  else await supabase.from('siswa').insert([data]);
+  if (id) await supabaseClient.from('siswa').update(data).eq('id', id);
+  else await supabaseClient.from('siswa').insert([data]);
   closeModal();
 }
 
@@ -284,8 +288,8 @@ function openSiswaForm(id) {
 async function simpanTentor(e) {
   const f = e.target; const id = f.dataset.id;
   const data = { nama: f.nama.value, email: f.email.value, mapel: f.mapel.value, tarif: Number(f.tarif.value)||0 };
-  if (id) await supabase.from('tentor').update(data).eq('id', id);
-  else await supabase.from('tentor').insert([data]);
+  if (id) await supabaseClient.from('tentor').update(data).eq('id', id);
+  else await supabaseClient.from('tentor').insert([data]);
   closeModal();
 }
 function openTentorForm(id) {
@@ -332,7 +336,7 @@ function renderJadwal() {
 }
 async function simpanJadwal(e) {
   const f = e.target;
-  await supabase.from('jadwal').insert([{ siswa_id: f.siswa_id.value, tentor_id: f.tentor_id.value, hari: f.hari.value, jam_mulai: f.jam_mulai.value, jam_selesai: f.jam_selesai.value }]);
+  await supabaseClient.from('jadwal').insert([{ siswa_id: f.siswa_id.value, tentor_id: f.tentor_id.value, hari: f.hari.value, jam_mulai: f.jam_mulai.value, jam_selesai: f.jam_selesai.value }]);
   closeModal();
 }
 function openJadwalForm() {
@@ -358,8 +362,8 @@ function renderAbsensi() {
 }
 async function setAbsensi(siswa_id, status) {
   const ex = DB.absensi.find(a => a.siswa_id===siswa_id && a.tanggal===absensiDate);
-  if (ex) await supabase.from('absensi').update({ status }).eq('id', ex.id);
-  else await supabase.from('absensi').insert([{ siswa_id, tanggal: absensiDate, status, oleh: DB.profile.email }]);
+  if (ex) await supabaseClient.from('absensi').update({ status }).eq('id', ex.id);
+  else await supabaseClient.from('absensi').insert([{ siswa_id, tanggal: absensiDate, status, oleh: DB.profile.email }]);
 }
 
 function renderLaporanTentor() {
@@ -382,12 +386,13 @@ function openLaporanForm() {
     const f = e.target; const file = document.getElementById('foto-input').files[0];
     if (!file) return;
     const fileName = `laporan/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
-    const { data: uploadData, error: err } = await supabase.storage.from('foto_laporan').upload(fileName, file);
+    // MENGGUNAKAN supabaseClient
+    const { data: uploadData, error: err } = await supabaseClient.storage.from('foto_laporan').upload(fileName, file);
     if (err) { alert("Gagal upload foto: " + err.message); return; }
-    const { data: { publicUrl } } = supabase.storage.from('foto_laporan').getPublicUrl(fileName);
+    const { data: { publicUrl } } = supabaseClient.storage.from('foto_laporan').getPublicUrl(fileName);
     
     const myTentor = DB.tentor.find(t => t.email === DB.profile.email) || DB.tentor[0];
-    await supabase.from('laporan').insert([{ tentor_id: myTentor.id, siswa_id: f.siswa_id.value, tanggal: f.tanggal.value, mapel: f.mapel.value, catatan: f.catatan.value, foto: publicUrl }]);
+    await supabaseClient.from('laporan').insert([{ tentor_id: myTentor.id, siswa_id: f.siswa_id.value, tanggal: f.tanggal.value, mapel: f.mapel.value, catatan: f.catatan.value, foto: publicUrl }]);
     closeModal();
   });
 }
@@ -411,7 +416,7 @@ function openInvoiceForm() {
   openModal('Buat Invoice', body, async (e) => {
     const f = e.target;
     const no = `INV-${new Date().getFullYear()}-${Math.floor(Math.random()*1000)}`;
-    await supabase.from('invoice').insert([{ no_invoice: no, jenis: f.jenis.value, untuk_id: f.untuk_id.value, total: Number(f.total.value), items: [] }]);
+    await supabaseClient.from('invoice').insert([{ no_invoice: no, jenis: f.jenis.value, untuk_id: f.untuk_id.value, total: Number(f.total.value), items: [] }]);
     closeModal();
   });
 }
