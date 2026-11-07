@@ -27,14 +27,12 @@
   .spinner { border: 4px solid rgba(255, 255, 255, 0.3); border-top: 4px solid white; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
   @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   
-  /* CSS PENTING UNTUK CETAK PDF */
   #print-area { display: none; }
   @media print {
     body * { visibility: hidden; }
     #print-area, #print-area * { visibility: visible; }
     #print-area { 
-      display: block !important; 
-      position: absolute; left: 0; top: 0; width: 100%; 
+      display: block !important; position: absolute; left: 0; top: 0; width: 100%; 
       padding: 0; margin: 0; background: white; color: black; 
     }
     @page { margin: 1cm; }
@@ -92,7 +90,6 @@
   </div>
 </div>
 
-<!-- AREA KHUSUS CETAK PDF -->
 <div id="print-area"></div>
 
 <script>
@@ -114,6 +111,7 @@ let absensiDate = new Date().toISOString().slice(0,10);
 let realtimeChannel = null;
 let refreshTimeout = null;
 let chartInstance = null;
+let jadwalSortBy = 'hari'; // 'hari' atau 'siswa'
 
 // ================= HELPERS =================
 function escapeHtml(s) { return String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -279,7 +277,6 @@ function renderPage() {
   const pages = { dashboard: renderDashboard, siswa: () => renderSiswa(), tentor: () => renderTentor(), jadwal: () => renderJadwal(), absensi: () => renderAbsensi(), invoice: () => renderInvoice(), keuangan: () => renderLaporanKeuangan(), akun: () => renderAkun(), backup: () => renderBackup(), laporan_tentor: () => renderLaporanTentor() };
   content.innerHTML = (pages[currentPage] || renderDashboard)();
   if (typeof lucide !== 'undefined') lucide.createIcons();
-  if (currentPage === 'keuangan') setTimeout(mountChart, 50);
 }
 
 // ================= DASHBOARD =================
@@ -625,7 +622,6 @@ function openInvoiceDetail(id) {
   const waNumber = formatWa(target?.no_wa || '');
   const waNama = inv.jenis==='siswa' ? (target?.nama_orang_tua||target?.nama||'') : (target?.nama||'');
   
-  // Pesan WA yang sudah diperbarui dengan info rekening
   const waMsg = encodeURIComponent(`Halo Bpk/Ibu ${waNama},\n\nBerikut invoice *${inv.no_invoice}* periode *${inv.periode}* dengan total *${rupiah(inv.total)}*.\n\nStatus: ${inv.status==='lunas'?'LUNAS':'BELUM BAYAR'}\n\n*Pembayaran dapat ditransfer ke:*\nBNI: 2079385983\nBCA: 4720524304\nBRI: 180701015922501\na.n. Joice Zhenrike Memmase\n\nTerima kasih 🙏\nJoy Bimbel`);
   const waUrl = `https://wa.me/${waNumber}?text=${waMsg}`;
 
@@ -804,7 +800,7 @@ function openSiswaForm(id) {
   openModal(editing?'Edit Siswa':'Tambah Siswa', body, simpanSiswa);
 }
 
-// ================= CRUD TENTOR, JADWAL, ABSENSI =================
+// ================= CRUD TENTOR =================
 function renderTentor() {
   return `<div>
     <div class="flex justify-between items-center mb-4"><h1 class="text-2xl font-bold">Daftar Tentor</h1><button onclick="openTentorForm()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Tambah Tentor</button></div>
@@ -832,15 +828,76 @@ function openTentorForm(id) {
   openModal(editing?'Edit Tentor':'Tambah Tentor', body, simpanTentor);
 }
 
+// ================= JADWAL (DENGAN SORTING) =================
+function setJadwalSort(val) {
+  jadwalSortBy = val;
+  renderPage();
+}
+
 function renderJadwal() {
   const role = DB.profile ? DB.profile.role : 'tentor';
+  
+  // Logika Pengurutan
+  let sortedJadwal = [...DB.jadwal];
+  if (jadwalSortBy === 'hari') {
+    sortedJadwal.sort((a, b) => {
+      const dayA = HARI.indexOf(a.hari);
+      const dayB = HARI.indexOf(b.hari);
+      if (dayA !== dayB) return dayA - dayB;
+      return (a.jam_mulai || '').localeCompare(b.jam_mulai || '');
+    });
+  } else if (jadwalSortBy === 'siswa') {
+    sortedJadwal.sort((a, b) => {
+      const sA = DB.siswa.find(x=>x.id===a.siswa_id)?.nama || '';
+      const sB = DB.siswa.find(x=>x.id===b.siswa_id)?.nama || '';
+      return sA.localeCompare(sB);
+    });
+  }
+
   return `<div>
-    <div class="flex justify-between items-center mb-4"><h1 class="text-2xl font-bold">Jadwal</h1>${role==='admin'?`<button onclick="openJadwalForm()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Tambah</button>`:''}</div>
-    <div class="bg-white rounded-xl border overflow-hidden"><table class="w-full text-sm"><thead class="bg-gray-50"><tr><th class="text-left px-4 py-3">Hari</th><th class="text-left px-4 py-3">Jam</th><th class="text-left px-4 py-3">Siswa</th>${role==='admin'?'<th class="text-right px-4 py-3">Aksi</th>':''}</tr></thead>
-      <tbody>${DB.jadwal.map(j=>{ const s = DB.siswa.find(x=>x.id===j.siswa_id)||{}; return `<tr class="border-t"><td class="px-4 py-3">${j.hari}</td><td class="px-4 py-3">${j.jam_mulai}-${j.jam_selesai}</td><td class="px-4 py-3">${escapeHtml(s.nama)}</td>${role==='admin'?`<td class="px-4 py-3 text-right"><button onclick="deleteRecord('jadwal','${j.id}')" class="text-red-600 p-1.5"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td>`:''}</tr>`; }).join('')}</tbody>
-    </table></div>
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+      <div>
+        <h1 class="text-2xl font-bold">Jadwal</h1>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="flex items-center gap-2">
+          <label class="text-sm text-gray-600 font-medium">Urutkan:</label>
+          <select onchange="setJadwalSort(this.value)" class="border rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-500">
+            <option value="hari" ${jadwalSortBy==='hari'?'selected':''}>Hari</option>
+            <option value="siswa" ${jadwalSortBy==='siswa'?'selected':''}>Nama Siswa</option>
+          </select>
+        </div>
+        ${role==='admin'?`<button onclick="openJadwalForm()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Tambah</button>`:''}
+      </div>
+    </div>
+    <div class="bg-white rounded-xl border overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="text-left px-4 py-3">Hari</th>
+            <th class="text-left px-4 py-3">Jam</th>
+            <th class="text-left px-4 py-3">Siswa</th>
+            ${role==='admin'?'<th class="text-right px-4 py-3">Aksi</th>':''}
+          </tr>
+        </thead>
+        <tbody>
+          ${sortedJadwal.map(j=>{ 
+            const s = DB.siswa.find(x=>x.id===j.siswa_id)||{}; 
+            return `<tr class="border-t">
+              <td class="px-4 py-3 font-medium text-orange-700">${j.hari}</td>
+              <td class="px-4 py-3">${j.jam_mulai}-${j.jam_selesai}</td>
+              <td class="px-4 py-3">${escapeHtml(s.nama || '-')}</td>
+              ${role==='admin'?`<td class="px-4 py-3 text-right">
+                <button onclick="deleteRecord('jadwal','${j.id}')" class="text-red-600 p-1.5 hover:bg-red-50 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </td>`:''}
+            </tr>`; 
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
   </div>`;
 }
+
 async function simpanJadwal(e) {
   const f = e.target;
   await supabaseClient.from('jadwal').insert([{ siswa_id: f.siswa_id.value, tentor_id: f.tentor_id.value, hari: f.hari.value, jam_mulai: f.jam_mulai.value, jam_selesai: f.jam_selesai.value }]);
@@ -857,6 +914,7 @@ function openJadwalForm() {
   openModal('Tambah Jadwal', body, simpanJadwal);
 }
 
+// ================= ABSENSI =================
 function renderAbsensi() {
   const existing = DB.absensi.filter(a => a.tanggal === absensiDate);
   return `<div>
