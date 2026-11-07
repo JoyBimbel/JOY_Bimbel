@@ -47,7 +47,6 @@
 <!-- LOGIN -->
 <div id="login-page" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 p-4">
   <form id="login-form" class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md transition-all duration-300">
-    <!-- Logo di Halaman Login -->
     <div class="flex justify-center mb-3">
       <img id="login-logo" src="" alt="Logo" class="h-20 w-20 object-contain hidden" />
     </div>
@@ -267,7 +266,7 @@ function bootApp() {
     const appPage = document.getElementById('app-page');
     if (appPage) { appPage.classList.remove('hidden'); setTimeout(() => appPage.classList.remove('opacity-0'), 50); }
     
-    applyLogo(); // Terapkan logo ke sidebar & header
+    applyLogo();
     
     const sidebarRole = document.getElementById('sidebar-role');
     if (sidebarRole && DB.profile) sidebarRole.textContent = DB.profile.role.toUpperCase() + ' - ' + DB.profile.nama;
@@ -285,7 +284,7 @@ function renderNav() {
     {id:'dashboard', label:'Dashboard', icon:'home'}, {id:'siswa', label:'Siswa', icon:'users'},
     {id:'tentor', label:'Tentor', icon:'user-cog'}, {id:'jadwal', label:'Jadwal', icon:'calendar'},
     {id:'absensi', label:'Absensi', icon:'clipboard-check'}, {id:'laporan_tentor', label:'Laporan Mengajar', icon:'file-check'},
-    {id:'invoice', label:'Invoice', icon:'file-text'}, {id:'keuangan', label:'Laporan Keuangan', icon:'bar-chart-3'},
+    {id:'invoice', label:'Invoice & Slip Gaji', icon:'file-text'}, {id:'keuangan', label:'Laporan Keuangan', icon:'bar-chart-3'},
     {id:'akun', label:'Akun & Akses', icon:'shield'},
     {id:'pengaturan', label:'Pengaturan Website', icon:'settings'},
     {id:'backup', label:'Backup Data', icon:'database'}
@@ -367,7 +366,6 @@ async function uploadLogo() {
   btn.textContent = 'Mengupload...';
 
   try {
-    // Hapus logo lama jika ada (untuk menimpa file dengan nama sama)
     const fileExt = file.name.split('.').pop();
     const fileName = `logo_${Date.now()}.${fileExt}`;
     
@@ -376,7 +374,6 @@ async function uploadLogo() {
     
     const { data: { publicUrl } } = supabaseClient.storage.from('logo').getPublicUrl(fileName);
     
-    // Simpan URL ke settings
     const { error: dbErr } = await supabaseClient.from('settings').upsert({ key: 'logo_url', value: publicUrl });
     if (dbErr) throw dbErr;
     
@@ -597,19 +594,19 @@ async function hapusLaporan(id) {
   await supabaseClient.from('laporan').delete().eq('id', id);
 }
 
-// ================= INVOICE SYSTEM =================
+// ================= INVOICE SYSTEM (UPDATED) =================
 function renderInvoice() {
   const inv = DB.invoice;
   const siswas = DB.siswa, tentors = DB.tentor;
   return `<div>
     <div class="flex justify-between items-center mb-4">
-      <div><h1 class="text-2xl font-bold">Invoice</h1><p class="text-gray-500 text-sm">${inv.length} invoice total</p></div>
-      <button onclick="openInvoiceForm()" class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Buat Invoice</button>
+      <div><h1 class="text-2xl font-bold">Invoice & Slip Gaji</h1><p class="text-gray-500 text-sm">${inv.length} total data</p></div>
+      <button onclick="openInvoiceForm()" class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Buat Baru</button>
     </div>
     <div class="bg-white rounded-xl border overflow-hidden">
       <table class="w-full text-sm">
         <thead class="bg-gray-50 text-gray-600"><tr>
-          <th class="text-left px-4 py-3">No Invoice</th>
+          <th class="text-left px-4 py-3">No Dokumen</th>
           <th class="text-left px-4 py-3">Jenis</th>
           <th class="text-left px-4 py-3">Penerima</th>
           <th class="text-left px-4 py-3">Periode</th>
@@ -618,7 +615,7 @@ function renderInvoice() {
           <th class="text-right px-4 py-3">Aksi</th>
         </tr></thead>
         <tbody>
-          ${inv.length===0?'<tr><td colspan="7" class="text-center text-gray-400 py-8">Belum ada invoice.</td></tr>':
+          ${inv.length===0?'<tr><td colspan="7" class="text-center text-gray-400 py-8">Belum ada data.</td></tr>':
           inv.map(i=>{
             const target = i.jenis==='siswa' ? siswas.find(x=>x.id===i.untuk_id) : tentors.find(x=>x.id===i.untuk_id);
             return `<tr class="border-t hover:bg-gray-50">
@@ -646,10 +643,10 @@ function openInvoiceForm(id) {
   const body = `
     <form id="form-invoice">
       <div class="space-y-3">
-        <div><label class="text-sm font-medium">Jenis Invoice *</label>
+        <div><label class="text-sm font-medium">Jenis Dokumen *</label>
           <select name="jenis" onchange="refreshRecipients(this.value)" class="w-full border rounded-lg px-3 py-2 mt-1">
-            <option value="siswa" ${editing?.jenis==='siswa'||!editing?'selected':''}>👨‍👩‍👧 Untuk Orang Tua Siswa (Pemasukan)</option>
-            <option value="tentor" ${editing?.jenis==='tentor'?'selected':''}>👨‍🏫 Untuk Tentor (Gaji)</option>
+            <option value="siswa" ${editing?.jenis==='siswa'||!editing?'selected':''}>👨‍👩‍👧 Tagihan / Invoice Siswa</option>
+            <option value="tentor" ${editing?.jenis==='tentor'?'selected':''}>👨‍🏫 Slip Gaji Tentor</option>
           </select></div>
         <div><label class="text-sm font-medium">Penerima *</label>
           <select name="untuk_id" id="recipient-select" required class="w-full border rounded-lg px-3 py-2 mt-1"></select></div>
@@ -663,17 +660,17 @@ function openInvoiceForm(id) {
         <div><label class="text-sm font-medium">Status</label>
           <select name="status" class="w-full border rounded-lg px-3 py-2 mt-1">
             <option value="belum_bayar" ${editing?.status==='belum_bayar'||!editing?'selected':''}>Belum Bayar</option>
-            <option value="lunas" ${editing?.status==='lunas'?'selected':''}>Lunas</option>
+            <option value="lunas" ${editing?.status==='lunas'?'selected':''}>Lunas / Sudah Dibayar</option>
           </select></div>
         <div class="flex justify-between items-center pt-3 border-t">
           <span class="text-sm text-gray-500">Total</span>
           <span id="invoice-total" class="text-xl font-bold text-orange-600">Rp0</span>
         </div>
-        <button type="submit" class="w-full bg-rose-600 text-white py-2 rounded-lg font-semibold mt-4">Simpan Invoice</button>
+        <button type="submit" class="w-full bg-rose-600 text-white py-2 rounded-lg font-semibold mt-4">Simpan Dokumen</button>
       </div>
     </form>`;
   
-  openModal(editing ? 'Edit Invoice' : 'Buat Invoice Baru', body, async (e) => {
+  openModal(editing ? 'Edit Dokumen' : 'Buat Dokumen Baru', body, async (e) => {
     const f = e.target;
     const items = [];
     document.querySelectorAll('#items-container .item-row').forEach(row => {
@@ -742,6 +739,7 @@ function updateInvoiceTotal() {
   if (el) el.textContent = rupiah(total);
 }
 
+// ================= DETAIL & WHATSAPP (UPDATED) =================
 function openInvoiceDetail(id) {
   const inv = DB.invoice.find(x=>x.id===id);
   if (!inv) return;
@@ -750,8 +748,19 @@ function openInvoiceDetail(id) {
   const waNumber = formatWa(target?.no_wa || '');
   const waNama = inv.jenis==='siswa' ? (target?.nama_orang_tua||target?.nama||'') : (target?.nama||'');
   
-  const waMsg = encodeURIComponent(`Halo Bpk/Ibu ${waNama},\n\nBerikut invoice *${inv.no_invoice}* periode *${inv.periode}* dengan total *${rupiah(inv.total)}*.\n\nStatus: ${inv.status==='lunas'?'LUNAS':'BELUM BAYAR'}\n\n*Pembayaran dapat ditransfer ke:*\nBNI: 2079385983\nBCA: 4720524304\nBRI: 180701015922501\na.n. Joice Zhenrike Memmase\n\nTerima kasih 🙏\nJoy Bimbel`);
-  const waUrl = `https://wa.me/${waNumber}?text=${waMsg}`;
+  // LOGIKA PESAN WHATSAPP
+  let waMsgText = "";
+  if (inv.jenis === 'tentor') {
+    waMsgText = `Halo ${waNama},\n\nBerikut slip gaji *${inv.no_invoice}* periode *${inv.periode}* dengan total *${rupiah(inv.total)}*.\n\nStatus: Sudah Dibayarkan / LUNAS\n\nTerima kasih 🙏\nJoy Bimbel`;
+  } else if (inv.jenis === 'siswa') {
+    if (inv.status === 'lunas') {
+      waMsgText = `Halo Bpk/Ibu ${waNama},\n\nBerikut bukti pelunasan invoice *${inv.no_invoice}* periode *${inv.periode}* dengan total *${rupiah(inv.total)}*.\n\nStatus: LUNAS\n\nTerima kasih 🙏\nJoy Bimbel`;
+    } else {
+      waMsgText = `Halo Bpk/Ibu ${waNama},\n\nBerikut tagihan *${inv.no_invoice}* periode *${inv.periode}* dengan total *${rupiah(inv.total)}*.\n\nStatus: BELUM BAYAR\n\n*Pembayaran dapat ditransfer ke:*\nBNI: 2079385983\nBCA: 4720524304\nBRI: 180701015922501\na.n. Joice Zhenrike Memmase\n\nTerima kasih 🙏\nJoy Bimbel`;
+    }
+  }
+  
+  const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(waMsgText)}`;
 
   const body = `
     <div class="overflow-x-auto">
@@ -762,7 +771,7 @@ function openInvoiceDetail(id) {
       <a href="${waUrl}" target="_blank" class="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-center font-semibold">📱 Kirim WhatsApp</a>
     </div>
   `;
-  openModal('Detail Invoice', body);
+  openModal('Detail Dokumen', body);
 }
 
 function buildInvoiceHTML(inv, target) {
@@ -773,6 +782,23 @@ function buildInvoiceHTML(inv, target) {
   let itemsArr = inv.items;
   if (!Array.isArray(itemsArr)) itemsArr = [];
 
+  // LOGIKA JUDUL DAN HEADER
+  let docTitle = 'INVOICE';
+  let headerLabel = 'Ditagihkan kepada:';
+  let showBank = false;
+
+  if (inv.jenis === 'tentor') {
+    docTitle = 'SLIP GAJI';
+    headerLabel = 'Pembayaran kepada :';
+  } else if (inv.jenis === 'siswa') {
+    if (inv.status === 'lunas') {
+      headerLabel = 'Pelunasan oleh :';
+    } else {
+      headerLabel = 'Ditagihkan kepada:';
+      showBank = true; // Hanya tampilkan bank jika belum bayar
+    }
+  }
+
   return `
     <div class="bg-white p-6 md:p-8 max-w-2xl mx-auto border text-black">
       <div class="flex justify-between items-start border-b pb-4 mb-4">
@@ -782,16 +808,18 @@ function buildInvoiceHTML(inv, target) {
           <p class="text-sm text-gray-600 mt-1">Telp: 081353206612</p>
         </div>
         <div class="text-right">
-          <p class="font-bold text-2xl">INVOICE</p>
+          <p class="font-bold text-2xl">${docTitle}</p>
           <p class="font-mono text-sm mt-1">${escapeHtml(inv.no_invoice)}</p>
           <p class="text-sm text-gray-600">${escapeHtml(inv.tanggal)}</p>
         </div>
       </div>
+      
       <div class="mb-6 text-sm">
-        <p class="text-xs text-gray-500 uppercase font-bold">Ditagihkan kepada:</p>
+        <p class="text-xs text-gray-500 uppercase font-bold">${headerLabel}</p>
         <p class="font-bold text-lg mt-1">${namaPenerima}</p>
         <p class="text-sm text-gray-600 mt-1">Periode: ${escapeHtml(inv.periode)}</p>
       </div>
+      
       <table class="w-full text-sm border-collapse mb-6">
         <thead><tr class="border-b-2 border-gray-300">
           <th class="text-left py-2 px-2">Deskripsi</th>
@@ -809,6 +837,7 @@ function buildInvoiceHTML(inv, target) {
             </tr>`).join('')}
         </tbody>
       </table>
+      
       <div class="flex justify-end mt-4">
         <div class="text-right">
           <p class="text-sm text-gray-500">Total</p>
@@ -818,6 +847,8 @@ function buildInvoiceHTML(inv, target) {
           </p>
         </div>
       </div>
+      
+      ${showBank ? `
       <div class="mt-10 pt-4 border-t border-gray-300 text-sm text-gray-700">
         <p class="font-bold mb-2">Silakan lakukan pembayaran ke salah satu rekening berikut:</p>
         <ul class="list-disc list-inside space-y-1 ml-2">
@@ -826,7 +857,11 @@ function buildInvoiceHTML(inv, target) {
           <li><b>BRI:</b> 180701015922501</li>
         </ul>
         <p class="mt-2 font-semibold">Atas Nama (a.n.): Joice Zhenrike Memmase</p>
-        <p class="mt-6 text-xs text-gray-500">Terima kasih atas kepercayaan Anda 🙏</p>
+      </div>
+      ` : ''}
+      
+      <div class="mt-6 text-xs text-gray-500">
+        <p>Terima kasih atas kepercayaan Anda 🙏</p>
       </div>
     </div>`;
 }
@@ -1074,7 +1109,7 @@ async function deleteRecord(table, id) {
 // ================= INIT =================
 window.addEventListener('DOMContentLoaded', async () => { 
   if (typeof lucide !== 'undefined') lucide.createIcons(); 
-  await loadLogo(); // Muat logo lebih dulu agar langsung terlihat di halaman login
+  await loadLogo();
   checkSession(); 
 });
 </script>
