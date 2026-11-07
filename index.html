@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Joy Bimbel</title>
+<link rel="icon" id="favicon" href="" />
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -46,6 +47,10 @@
 <!-- LOGIN -->
 <div id="login-page" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 p-4">
   <form id="login-form" class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md transition-all duration-300">
+    <!-- Logo di Halaman Login -->
+    <div class="flex justify-center mb-3">
+      <img id="login-logo" src="" alt="Logo" class="h-20 w-20 object-contain hidden" />
+    </div>
     <h1 class="text-3xl font-bold text-center mb-2"><span class="text-orange-600">Joy</span> Bimbel</h1>
     <p class="text-center text-gray-500 mb-6 text-sm">Silakan login untuk melanjutkan</p>
     <input name="email" type="email" required placeholder="Email" class="w-full border rounded-lg px-4 py-3 mb-3 focus:outline-none focus:ring-2 focus:ring-orange-500" />
@@ -67,13 +72,22 @@
 <div id="app-page" class="hidden opacity-0 transition-opacity duration-500">
   <div class="md:hidden bg-white border-b px-4 py-3 flex items-center justify-between sticky top-0 z-30">
     <button onclick="toggleSidebar()"><i data-lucide="menu" class="w-6 h-6"></i></button>
-    <span class="font-bold"><span class="text-orange-600">Joy</span> Bimbel</span>
+    <div class="flex items-center gap-2">
+      <img id="mobile-logo" src="" class="h-7 w-7 object-contain hidden" />
+      <span class="font-bold"><span class="text-orange-600">Joy</span> Bimbel</span>
+    </div>
     <button onclick="logout()" class="text-red-600 p-1"><i data-lucide="log-out" class="w-5 h-5"></i></button>
   </div>
 
   <div class="flex min-h-screen">
     <aside id="sidebar" class="fixed md:static inset-y-0 left-0 z-40 w-64 bg-white border-r p-4 flex-col hidden md:flex transform -translate-x-full md:translate-x-0 transition-transform overflow-y-auto">
-      <div class="flex items-center justify-between mb-6"><h1 class="text-xl font-bold"><span class="text-orange-600">Joy</span> Bimbel</h1><button class="md:hidden" onclick="toggleSidebar()"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+      <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center gap-2">
+          <img id="sidebar-logo" src="" class="h-8 w-8 object-contain hidden" />
+          <h1 class="text-xl font-bold"><span class="text-orange-600">Joy</span> Bimbel</h1>
+        </div>
+        <button class="md:hidden" onclick="toggleSidebar()"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
       <div class="text-xs text-gray-500 mb-4 px-3 py-2 bg-gray-50 rounded-lg">Login: <b id="sidebar-role"></b></div>
       <nav id="nav" class="flex-1 space-y-1 overflow-y-auto"></nav>
       <button onclick="logout()" class="mt-4 flex items-center gap-3 px-3 py-2 rounded-lg text-red-600 hover:bg-red-50 w-full flex-shrink-0"><i data-lucide="log-out" class="w-4 h-4"></i> Logout</button>
@@ -105,12 +119,13 @@ window.onerror = function(msg, url, line, col, error) {
 };
 
 // ================= GLOBAL DATA =================
-let DB = { profile: null, siswa: [], tentor: [], jadwal: [], absensi: [], invoice: [], laporan: [], users: [] };
+let DB = { profile: null, siswa: [], tentor: [], jadwal: [], absensi: [], invoice: [], laporan: [], users: [], settings: {} };
 let currentPage = 'dashboard';
 let absensiDate = new Date().toISOString().slice(0,10);
 let realtimeChannel = null;
 let refreshTimeout = null;
 let chartInstance = null;
+let LOGO_URL = '';
 
 // ================= HELPERS =================
 function escapeHtml(s) { return String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -120,6 +135,33 @@ function todayISO() { return new Date().toISOString().slice(0,10); }
 const NAMA_BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 function periodeNow() { const d = new Date(); return `${NAMA_BULAN[d.getMonth()]} ${d.getFullYear()}`; }
 const HARI = ['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'];
+
+// ================= LOGO MANAGEMENT =================
+async function loadLogo() {
+  try {
+    const { data } = await supabaseClient.from('settings').select('value').eq('key', 'logo_url').single();
+    if (data && data.value) {
+      LOGO_URL = data.value;
+      applyLogo();
+    }
+  } catch (e) { console.log("Logo belum diatur."); }
+}
+
+function applyLogo() {
+  if (!LOGO_URL) return;
+  
+  const loginLogo = document.getElementById('login-logo');
+  if (loginLogo) { loginLogo.src = LOGO_URL; loginLogo.classList.remove('hidden'); }
+  
+  const sidebarLogo = document.getElementById('sidebar-logo');
+  if (sidebarLogo) { sidebarLogo.src = LOGO_URL; sidebarLogo.classList.remove('hidden'); }
+  
+  const mobileLogo = document.getElementById('mobile-logo');
+  if (mobileLogo) { mobileLogo.src = LOGO_URL; mobileLogo.classList.remove('hidden'); }
+  
+  const favicon = document.getElementById('favicon');
+  if (favicon) { favicon.href = LOGO_URL; }
+}
 
 // ================= AUTH =================
 async function checkSession() {
@@ -169,19 +211,25 @@ async function loadAllData(user) {
     if (profErr || !profile) throw new Error("Profil Anda belum terdaftar.");
     DB.profile = profile;
 
-    const [resSiswa, resTentor, resJadwal, resAbsensi, resInvoice, resLaporan, resUsers] = await Promise.all([
+    const [resSiswa, resTentor, resJadwal, resAbsensi, resInvoice, resLaporan, resUsers, resSettings] = await Promise.all([
       supabaseClient.from('siswa').select('*').order('nama'),
       supabaseClient.from('tentor').select('*').order('nama'),
       supabaseClient.from('jadwal').select('*'),
       supabaseClient.from('absensi').select('*'),
       supabaseClient.from('invoice').select('*').order('created_at', { ascending: false }),
       supabaseClient.from('laporan').select('*').order('created_at', { ascending: false }),
-      supabaseClient.from('profiles').select('*').order('nama')
+      supabaseClient.from('profiles').select('*').order('nama'),
+      supabaseClient.from('settings').select('*')
     ]);
 
     DB.siswa = resSiswa.data || []; DB.tentor = resTentor.data || []; DB.jadwal = resJadwal.data || [];
     DB.absensi = resAbsensi.data || []; DB.invoice = resInvoice.data || []; DB.laporan = resLaporan.data || [];
     DB.users = resUsers.data || [];
+    
+    if (resSettings.data) {
+      resSettings.data.forEach(s => DB.settings[s.key] = s.value);
+      if (DB.settings.logo_url) { LOGO_URL = DB.settings.logo_url; }
+    }
 
     bootApp();
     
@@ -219,6 +267,8 @@ function bootApp() {
     const appPage = document.getElementById('app-page');
     if (appPage) { appPage.classList.remove('hidden'); setTimeout(() => appPage.classList.remove('opacity-0'), 50); }
     
+    applyLogo(); // Terapkan logo ke sidebar & header
+    
     const sidebarRole = document.getElementById('sidebar-role');
     if (sidebarRole && DB.profile) sidebarRole.textContent = DB.profile.role.toUpperCase() + ' - ' + DB.profile.nama;
     const mobileRole = document.getElementById('mobile-role');
@@ -236,7 +286,9 @@ function renderNav() {
     {id:'tentor', label:'Tentor', icon:'user-cog'}, {id:'jadwal', label:'Jadwal', icon:'calendar'},
     {id:'absensi', label:'Absensi', icon:'clipboard-check'}, {id:'laporan_tentor', label:'Laporan Mengajar', icon:'file-check'},
     {id:'invoice', label:'Invoice', icon:'file-text'}, {id:'keuangan', label:'Laporan Keuangan', icon:'bar-chart-3'},
-    {id:'akun', label:'Akun & Akses', icon:'shield'}, {id:'backup', label:'Backup Data', icon:'database'}
+    {id:'akun', label:'Akun & Akses', icon:'shield'},
+    {id:'pengaturan', label:'Pengaturan Website', icon:'settings'},
+    {id:'backup', label:'Backup Data', icon:'database'}
   ];
   const tentorMenus = [
     {id:'dashboard', label:'Dashboard', icon:'home'}, {id:'siswa', label:'Siswa', icon:'users'},
@@ -273,17 +325,77 @@ document.getElementById('modal-body').addEventListener('submit', (e) => { e.prev
 function renderPage() {
   const content = document.getElementById('content');
   if (!content) return;
-  const pages = { dashboard: renderDashboard, siswa: () => renderSiswa(), tentor: () => renderTentor(), jadwal: () => renderJadwal(), absensi: () => renderAbsensi(), invoice: () => renderInvoice(), keuangan: () => renderLaporanKeuangan(), akun: () => renderAkun(), backup: () => renderBackup(), laporan_tentor: () => renderLaporanTentor() };
+  const pages = { dashboard: renderDashboard, siswa: () => renderSiswa(), tentor: () => renderTentor(), jadwal: () => renderJadwal(), absensi: () => renderAbsensi(), invoice: () => renderInvoice(), keuangan: () => renderLaporanKeuangan(), akun: () => renderAkun(), pengaturan: () => renderPengaturan(), backup: () => renderBackup(), laporan_tentor: () => renderLaporanTentor() };
   content.innerHTML = (pages[currentPage] || renderDashboard)();
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
-// ================= FUNGSI BANTUAN: DAPATKAN ID TENTOR YANG SEDANG LOGIN =================
+// ================= PENGATURAN WEBSITE =================
+function renderPengaturan() {
+  return `<div>
+    <h1 class="text-2xl font-bold mb-1">Pengaturan Website</h1>
+    <p class="text-gray-500 mb-6 text-sm">Sesuaikan identitas visual website Anda</p>
+    
+    <div class="bg-white rounded-xl border p-6 max-w-2xl">
+      <h2 class="font-bold text-lg mb-1 flex items-center gap-2"><i data-lucide="image" class="w-5 h-5 text-orange-600"></i> Logo Website</h2>
+      <p class="text-sm text-gray-500 mb-4">Logo akan tampil di halaman login, sidebar, dan tab browser (favicon).</p>
+      
+      <div class="flex flex-col sm:flex-row items-center gap-6">
+        <div class="w-32 h-32 border-2 border-dashed rounded-xl flex items-center justify-center bg-gray-50 overflow-hidden flex-shrink-0">
+          ${LOGO_URL ? `<img src="${LOGO_URL}" class="max-w-full max-h-full object-contain" />` : `<i data-lucide="image" class="w-10 h-10 text-gray-300"></i>`}
+        </div>
+        
+        <div class="flex-1 w-full">
+          <label class="block text-sm font-medium mb-1">Pilih file gambar (PNG / JPG)</label>
+          <input type="file" id="logo-input" accept="image/*" class="w-full border rounded-lg px-3 py-2 text-sm mb-3" />
+          <button onclick="uploadLogo()" id="btn-upload-logo" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-orange-700 transition">Upload Logo</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function uploadLogo() {
+  const input = document.getElementById('logo-input');
+  const btn = document.getElementById('btn-upload-logo');
+  const file = input.files[0];
+  
+  if (!file) { alert('Pilih file gambar terlebih dahulu!'); return; }
+  if (file.size > 2 * 1024 * 1024) { alert('Ukuran file maksimal 2MB.'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Mengupload...';
+
+  try {
+    // Hapus logo lama jika ada (untuk menimpa file dengan nama sama)
+    const fileExt = file.name.split('.').pop();
+    const fileName = `logo_${Date.now()}.${fileExt}`;
+    
+    const { error: uploadErr } = await supabaseClient.storage.from('logo').upload(fileName, file);
+    if (uploadErr) throw uploadErr;
+    
+    const { data: { publicUrl } } = supabaseClient.storage.from('logo').getPublicUrl(fileName);
+    
+    // Simpan URL ke settings
+    const { error: dbErr } = await supabaseClient.from('settings').upsert({ key: 'logo_url', value: publicUrl });
+    if (dbErr) throw dbErr;
+    
+    LOGO_URL = publicUrl;
+    applyLogo();
+    alert('✅ Logo berhasil diperbarui!');
+    renderPage();
+    
+  } catch (err) {
+    alert('Gagal upload logo: ' + err.message);
+    btn.disabled = false;
+    btn.textContent = 'Upload Logo';
+  }
+}
+
+// ================= FUNGSI BANTUAN: ID TENTOR =================
 function getMyTentorId() {
   if (DB.profile.role !== 'tentor') return null;
-  // 1. Coba ambil dari profile.tentor_id
   if (DB.profile.tentor_id) return DB.profile.tentor_id;
-  // 2. Jika kosong, cari berdasarkan email di tabel tentor
   const match = DB.tentor.find(t => t.email === DB.profile.email);
   return match ? match.id : null;
 }
@@ -398,18 +510,14 @@ async function hapusAkun(email, nama) {
   }
 }
 
-// ================= LAPORAN TENTOR (PRIVASI DIPERBAIKI) =================
+// ================= LAPORAN TENTOR =================
 function renderLaporanTentor() {
   const role = DB.profile ? DB.profile.role : 'tentor';
   const myTentorId = getMyTentorId();
   
-  // Filter Laporan: Jika Tentor, WAJIB punya myTentorId. Jika tidak ada, tampilkan kosong.
   let list = [];
-  if (role === 'admin') {
-    list = DB.laporan;
-  } else if (role === 'tentor') {
-    list = myTentorId ? DB.laporan.filter(l => l.tentor_id === myTentorId) : [];
-  }
+  if (role === 'admin') { list = DB.laporan; }
+  else if (role === 'tentor') { list = myTentorId ? DB.laporan.filter(l => l.tentor_id === myTentorId) : []; }
 
   return `<div>
     <div class="flex justify-between items-center mb-4">
@@ -669,6 +777,7 @@ function buildInvoiceHTML(inv, target) {
     <div class="bg-white p-6 md:p-8 max-w-2xl mx-auto border text-black">
       <div class="flex justify-between items-start border-b pb-4 mb-4">
         <div>
+          ${LOGO_URL ? `<img src="${LOGO_URL}" class="h-12 mb-2 object-contain" />` : ''}
           <h2 class="text-3xl font-bold text-orange-600">JOY BIMBEL</h2>
           <p class="text-sm text-gray-600 mt-1">Telp: 081353206612</p>
         </div>
@@ -848,27 +957,21 @@ function openTentorForm(id) {
   openModal(editing?'Edit Tentor':'Tambah Tentor', body, simpanTentor);
 }
 
-// ================= JADWAL DENGAN PEMISAH PER SISWA & PRIVASI DIPERBAIKI =================
+// ================= JADWAL DENGAN PEMISAH PER SISWA =================
 function renderJadwal() {
   const role = DB.profile ? DB.profile.role : 'tentor';
   const myTentorId = getMyTentorId();
   
-  // Filter Jadwal: Jika Tentor, WAJIB punya myTentorId. Jika tidak ada, tampilkan kosong.
   let filteredJadwal = [];
-  if (role === 'admin') {
-    filteredJadwal = DB.jadwal;
-  } else if (role === 'tentor') {
-    filteredJadwal = myTentorId ? DB.jadwal.filter(j => j.tentor_id === myTentorId) : [];
-  }
+  if (role === 'admin') { filteredJadwal = DB.jadwal; }
+  else if (role === 'tentor') { filteredJadwal = myTentorId ? DB.jadwal.filter(j => j.tentor_id === myTentorId) : []; }
 
-  // Grouping Jadwal per Siswa
   const grouped = {};
   filteredJadwal.forEach(j => {
     if (!grouped[j.siswa_id]) grouped[j.siswa_id] = [];
     grouped[j.siswa_id].push(j);
   });
 
-  // Urutkan daftar siswa berdasarkan abjad
   const sortedSiswaIds = Object.keys(grouped).sort((a, b) => {
     const nameA = DB.siswa.find(x=>x.id===a)?.nama || '';
     const nameB = DB.siswa.find(x=>x.id===b)?.nama || '';
@@ -886,8 +989,6 @@ function renderJadwal() {
       ${sortedSiswaIds.map(siswaId => {
         const s = DB.siswa.find(x=>x.id===siswaId) || {};
         const jadwalSiswa = grouped[siswaId];
-        
-        // Urutkan jadwal di dalam kartu berdasarkan hari
         jadwalSiswa.sort((a, b) => {
           const dayA = HARI.indexOf(a.hari);
           const dayB = HARI.indexOf(b.hari);
@@ -971,8 +1072,9 @@ async function deleteRecord(table, id) {
 }
 
 // ================= INIT =================
-window.addEventListener('DOMContentLoaded', () => { 
+window.addEventListener('DOMContentLoaded', async () => { 
   if (typeof lucide !== 'undefined') lucide.createIcons(); 
+  await loadLogo(); // Muat logo lebih dulu agar langsung terlihat di halaman login
   checkSession(); 
 });
 </script>
