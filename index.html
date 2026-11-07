@@ -8,39 +8,68 @@
 <script src="https://unpkg.com/lucide@latest"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
+  :root {
+    --theme-50: #fff7ed; --theme-100: #ffedd5; --theme-500: #f97316;
+    --theme-600: #ea580c; --theme-700: #c2410c; --theme-800: #9a3412;
+  }
+  /* Override Tailwind classes dynamically based on theme */
+  .bg-orange-50 { background-color: var(--theme-50) !important; }
+  .bg-orange-100 { background-color: var(--theme-100) !important; }
+  .bg-orange-500 { background-color: var(--theme-500) !important; }
+  .bg-orange-600 { background-color: var(--theme-600) !important; }
+  .hover\:bg-orange-700:hover { background-color: var(--theme-700) !important; }
+  .text-orange-600 { color: var(--theme-600) !important; }
+  .text-orange-700 { color: var(--theme-700) !important; }
+  .text-orange-800 { color: var(--theme-800) !important; }
+  .border-orange-600 { border-color: var(--theme-600) !important; }
+  .focus\:ring-orange-500:focus { --tw-ring-color: var(--theme-500) !important; }
+  .border-orange-500 { border-color: var(--theme-500) !important; }
+
+  /* Animasi Loading */
+  .spinner {
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-top: 4px solid white;
+    border-radius: 50%;
+    width: 40px; height: 40px;
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
   #print-area { display: none; }
   @media print {
     body * { visibility: hidden; }
     #print-area, #print-area * { visibility: visible; }
-    #print-area {
-      display: block !important;
-      position: absolute; left: 0; top: 0; width: 100%;
-      padding: 20px; background: white; color: black;
-    }
+    #print-area { display: block !important; position: absolute; left: 0; top: 0; width: 100%; padding: 20px; background: white; color: black; }
     @page { margin: 1cm; }
   }
 </style>
 </head>
 <body class="bg-slate-100">
 
-<!-- LOGIN -->
-<div id="login-page" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-500 to-amber-500 p-4">
-  <form id="login-form" class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+<!-- 1. HALAMAN LOGIN -->
+<div id="login-page" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 p-4">
+  <form id="login-form" class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md transition-all duration-300">
     <h1 class="text-3xl font-bold text-center mb-2"><span class="text-orange-600">Joy</span> Bimbel</h1>
-    <p class="text-center text-gray-500 mb-6 text-sm">Login Admin / Tentor</p>
-    <input name="email" type="email" required value="admin@bimbel.com" class="w-full border rounded-lg px-4 py-3 mb-3 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-    <input name="password" type="password" required value="admin123" class="w-full border rounded-lg px-4 py-3 mb-4 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-    <button type="submit" class="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-lg font-semibold">Masuk</button>
-    <div class="mt-4 text-xs text-gray-500 text-center space-y-1">
-      <p>Admin: admin@bimbel.com / admin123</p>
-      <p>Tentor: tentor@bimbel.com / tentor123</p>
-    </div>
-    <p id="login-error" class="text-red-500 text-sm text-center mt-2 hidden">Email atau password salah</p>
+    <p class="text-center text-gray-500 mb-6 text-sm">Silakan login untuk melanjutkan</p>
+    <input name="email" type="email" required placeholder="Email" class="w-full border rounded-lg px-4 py-3 mb-3 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+    <input name="password" type="password" required placeholder="Password" class="w-full border rounded-lg px-4 py-3 mb-4 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+    
+    <button type="submit" id="btn-login" class="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-lg font-semibold flex justify-center items-center gap-2">
+      <span id="btn-text">Masuk</span>
+    </button>
+    
+    <p id="login-error" class="text-red-500 text-sm text-center mt-4 hidden">Email atau password salah!</p>
   </form>
 </div>
 
-<!-- APP -->
-<div id="app-page" class="hidden">
+<!-- 2. HALAMAN LOADING (Transisi) -->
+<div id="loading-page" class="hidden fixed inset-0 bg-slate-900 z-[100] flex flex-col items-center justify-center transition-opacity duration-500 opacity-0">
+  <div class="spinner mb-4"></div>
+  <h2 class="text-white text-xl font-bold animate-pulse">Menyiapkan Dashboard...</h2>
+</div>
+
+<!-- 3. HALAMAN UTAMA (APP) -->
+<div id="app-page" class="hidden opacity-0 transition-opacity duration-500">
   <div class="md:hidden bg-white border-b px-4 py-3 flex items-center justify-between sticky top-0 z-30">
     <button onclick="toggleSidebar()"><i data-lucide="menu" class="w-6 h-6"></i></button>
     <span class="font-bold"><span class="text-orange-600">Joy</span> Bimbel</span>
@@ -53,18 +82,11 @@
         <h1 class="text-xl font-bold"><span class="text-orange-600">Joy</span> Bimbel</h1>
         <button class="md:hidden" onclick="toggleSidebar()"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
-      <div class="text-xs text-gray-500 mb-4 px-3 py-2 bg-gray-50 rounded-lg">
-        Login sebagai: <b id="sidebar-role"></b>
-      </div>
-      <nav id="nav" class="flex-1 space-y-1"></nav>
-      <button onclick="logout()" class="mt-4 flex items-center gap-3 px-3 py-2 rounded-lg text-red-600 hover:bg-red-50 w-full">
-        <i data-lucide="log-out" class="w-4 h-4"></i> Logout
-      </button>
+      <div class="text-xs text-gray-500 mb-4 px-3 py-2 bg-gray-50 rounded-lg">Login: <b id="sidebar-role"></b></div>
+      <nav id="nav" class="flex-1 space-y-1 overflow-y-auto"></nav>
+      <button onclick="logout()" class="mt-4 flex items-center gap-3 px-3 py-2 rounded-lg text-red-600 hover:bg-red-50 w-full flex-shrink-0"><i data-lucide="log-out" class="w-4 h-4"></i> Logout</button>
     </aside>
-
-    <main class="flex-1 p-4 md:p-8 overflow-x-auto">
-      <div id="content"></div>
-    </main>
+    <main class="flex-1 p-4 md:p-8 overflow-x-auto"><div id="content"></div></main>
   </div>
 </div>
 
@@ -79,105 +101,168 @@
   </div>
 </div>
 
-<!-- PRINT AREA -->
 <div id="print-area"></div>
 
 <script>
 // ================= STORAGE =================
-const K = { siswa:'bk_siswa_v3', tentor:'bk_tentor_v3', jadwal:'bk_jadwal_v3', absensi:'bk_absensi_v3', invoice:'bk_invoice_v3', session:'bk_session_v3' };
+const K = { users:'jb_users', siswa:'jb_siswa', tentor:'jb_tentor', jadwal:'jb_jadwal', absensi:'jb_absensi', invoice:'jb_invoice', laporan:'jb_laporan', session:'jb_session', theme:'jb_theme', secLog:'jb_security' };
 function load(key, fb) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fb; } catch { return fb; } }
 function save(key, v) { localStorage.setItem(key, JSON.stringify(v)); }
 
-// ================= SEED =================
-const seedTentor = [
-  {id:'t1', nama:'Bu Sari',  email:'sari@bimbel.com',  mapel:'Matematika', no_wa:'081211112222', tarif:50000, aktif:true, created_at:'2025-01-01'},
-  {id:'t2', nama:'Pak Andi', email:'andi@bimbel.com',  mapel:'Fisika',     no_wa:'081211113333', tarif:55000, aktif:true, created_at:'2025-01-02'},
+// ================= SEED & INIT =================
+const seedUsers = [
+  { id:'u1', email:'admin@bimbel.com', password:'admin123', role:'admin', nama:'Admin Utama' },
+  { id:'u2', email:'tentor@bimbel.com', password:'tentor123', role:'tentor', nama:'Bu Sari (Tentor)', tentor_id:'t1' }
 ];
-const seedSiswa = [
-  {id:'s1', nama:'Ahmad Fauzi',  kelas:'SD 5',  nama_orang_tua:'Bpk. Hasan', no_wa:'081234567890', alamat:'Jl. Merdeka 1', aktif:true, tentor_id:'t1', tarif_bulanan:300000, created_at:'2025-01-01'},
-  {id:'s2', nama:'Siti Aisyah',  kelas:'SMP 1', nama_orang_tua:'Ibu Rina',   no_wa:'081234567891', alamat:'Jl. Merdeka 2', aktif:true, tentor_id:'t1', tarif_bulanan:350000, created_at:'2025-01-02'},
-  {id:'s3', nama:'Budi Santoso', kelas:'SD 6',  nama_orang_tua:'Bpk. Joko',  no_wa:'081234567892', alamat:'Jl. Merdeka 3', aktif:true, tentor_id:'t2', tarif_bulanan:300000, created_at:'2025-01-03'},
-];
-const seedJadwal = [
-  {id:'j1', siswa_id:'s1', tentor_id:'t1', mapel:'Matematika', hari:'Senin',  jam_mulai:'15:00', jam_selesai:'16:30'},
-  {id:'j2', siswa_id:'s2', tentor_id:'t1', mapel:'Matematika', hari:'Selasa', jam_mulai:'16:00', jam_selesai:'17:30'},
-  {id:'j3', siswa_id:'s3', tentor_id:'t2', mapel:'Fisika',     hari:'Rabu',   jam_mulai:'15:00', jam_selesai:'16:30'},
-];
+const seedTentor = [{id:'t1', nama:'Bu Sari', email:'sari@bimbel.com', mapel:'Matematika', no_wa:'081211112222', tarif:50000, aktif:true}];
+const seedSiswa = [{id:'s1', nama:'Ahmad Fauzi', kelas:'SD 5', nama_orang_tua:'Bpk. Hasan', no_wa:'081234567890', alamat:'Jl. Merdeka 1', aktif:true, tentor_id:'t1', tarif_bulanan:300000}];
+const seedJadwal = [{id:'j1', siswa_id:'s1', tentor_id:'t1', mapel:'Matematika', hari:'Senin', jam_mulai:'15:00', jam_selesai:'16:30'}];
 
-// ================= GETTERS =================
-function getSiswa()   { let d = load(K.siswa, null);   if (!d) { save(K.siswa,   seedSiswa);   d = seedSiswa;   } return d; }
-function saveSiswa(v) { save(K.siswa, v); }
-function getTentor()  { let d = load(K.tentor, null);  if (!d) { save(K.tentor,  seedTentor);  d = seedTentor;  } return d; }
-function saveTentor(v){ save(K.tentor, v); }
-function getJadwal()  { let d = load(K.jadwal, null);  if (!d) { save(K.jadwal,  seedJadwal);  d = seedJadwal;  } return d; }
-function saveJadwal(v){ save(K.jadwal, v); }
-function getAbsensi() { return load(K.absensi, []); }
-function saveAbsensi(v){ save(K.absensi, v); }
-function getInvoice() { return load(K.invoice, []); }
-function saveInvoice(v){ save(K.invoice, v); }
-function getSession() { return load(K.session, null); }
+function initData(key, seed) { if (!localStorage.getItem(key)) save(key, seed); }
+initData(K.users, seedUsers); initData(K.tentor, seedTentor); initData(K.siswa, seedSiswa); initData(K.jadwal, seedJadwal);
+
+const getUsers = () => load(K.users, []); const saveUsers = v => save(K.users, v);
+const getSiswa = () => load(K.siswa, []); const saveSiswa = v => save(K.siswa, v);
+const getTentor = () => load(K.tentor, []); const saveTentor = v => save(K.tentor, v);
+const getJadwal = () => load(K.jadwal, []); const saveJadwal = v => save(K.jadwal, v);
+const getAbsensi = () => load(K.absensi, []); const saveAbsensi = v => save(K.absensi, v);
+const getInvoice = () => load(K.invoice, []); const saveInvoice = v => save(K.invoice, v);
+const getLaporan = () => load(K.laporan, []); const saveLaporan = v => save(K.laporan, v);
+const getSession = () => load(K.session, null);
 
 // ================= HELPERS =================
 function escapeHtml(s) { return String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function formatWa(n) { n = String(n||'').replace(/\D/g,''); if (n.startsWith('0')) return '62' + n.slice(1); if (n.startsWith('62')) return n; return '62' + n; }
+function formatWa(n) { n = String(n||'').replace(/\D/g,''); if (n.startsWith('0')) return '62' + n.slice(1); return n.startsWith('62')?n:'62'+n; }
 function rupiah(n) { return 'Rp' + Number(n||0).toLocaleString('id-ID'); }
 function todayISO() { return new Date().toISOString().slice(0,10); }
 const NAMA_BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-function nowDate() { const d = new Date(); return `${d.getDate()} ${NAMA_BULAN[d.getMonth()]} ${d.getFullYear()}`; }
 function periodeNow() { const d = new Date(); return `${NAMA_BULAN[d.getMonth()]} ${d.getFullYear()}`; }
 const HARI = ['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'];
 
-// ================= AUTH =================
-const accounts = {
-  'admin@bimbel.com':  { password:'admin123',  role:'admin',  nama:'Admin'  },
-  'tentor@bimbel.com': { password:'tentor123', role:'tentor', nama:'Tentor' },
-};
+function applyTheme(themeName) {
+  const themes = {
+    'orange': { 50:'#fff7ed', 100:'#ffedd5', 500:'#f97316', 600:'#ea580c', 700:'#c2410c', 800:'#9a3412' },
+    'blue':   { 50:'#eff6ff', 100:'#dbeafe', 500:'#3b82f6', 600:'#2563eb', 700:'#1d4ed8', 800:'#1e40af' },
+    'green':  { 50:'#f0fdf4', 100:'#dcfce7', 500:'#22c55e', 600:'#16a34a', 700:'#15803d', 800:'#166534' },
+    'purple': { 50:'#faf5ff', 100:'#f3e8ff', 500:'#a855f7', 600:'#9333ea', 700:'#7e22ce', 800:'#6b21a8' },
+    'rose':   { 50:'#fff1f2', 100:'#ffe4e6', 500:'#f43f5e', 600:'#e11d48', 700:'#be123c', 800:'#9f1239' }
+  };
+  const t = themes[themeName] || themes['orange'];
+  const root = document.documentElement;
+  root.style.setProperty('--theme-50', t[50]); root.style.setProperty('--theme-100', t[100]);
+  root.style.setProperty('--theme-500', t[500]); root.style.setProperty('--theme-600', t[600]);
+  root.style.setProperty('--theme-700', t[700]); root.style.setProperty('--theme-800', t[800]);
+  
+  const lp = document.getElementById('login-page');
+  if (lp) {
+    lp.style.backgroundImage = `linear-gradient(to bottom right, ${t[500]}, ${t[600]})`;
+    Array.from(lp.classList).forEach(c => {
+      if (c.startsWith('from-') || c.startsWith('to-') || c === 'bg-gradient-to-br') {
+        lp.classList.remove(c);
+      }
+    });
+  }
+}
+
+// ================= AUTH & LOGIN FLOW =================
 document.getElementById('login-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const f = e.target;
-  const acc = accounts[f.email.value.trim()];
-  if (acc && acc.password === f.password.value) {
-    save(K.session, { role:acc.role, nama:acc.nama, email:f.email.value.trim() });
-    bootApp();
-  } else {
-    document.getElementById('login-error').classList.remove('hidden');
-  }
+  const btn = document.getElementById('btn-login');
+  const btnText = document.getElementById('btn-text');
+  
+  btn.disabled = true;
+  btn.classList.add('opacity-75', 'cursor-not-allowed');
+  btnText.innerHTML = `<div class="spinner" style="width:20px;height:20px;border-width:2px;margin-right:8px;"></div> Memverifikasi...`;
+  
+  const email = f.email.value.trim();
+  const pass = f.password.value;
+  
+  setTimeout(() => {
+    const user = getUsers().find(u => u.email === email && u.password === pass);
+    
+    if (user) {
+      save(K.session, user);
+      showLoadingAndBoot();
+    } else {
+      const logs = load(K.secLog, []);
+      logs.push({ email, time: new Date().toISOString() });
+      save(K.secLog, logs);
+      
+      document.getElementById('login-error').classList.remove('hidden');
+      btn.disabled = false;
+      btn.classList.remove('opacity-75', 'cursor-not-allowed');
+      btnText.innerText = 'Masuk';
+    }
+  }, 600); 
 });
-function logout() { if (!confirm('Logout?')) return; localStorage.removeItem(K.session); location.reload(); }
 
-// ================= NAV =================
+function showLoadingAndBoot() {
+  const loginPage = document.getElementById('login-page');
+  const loadingPage = document.getElementById('loading-page');
+  const appPage = document.getElementById('app-page');
+  
+  loginPage.classList.add('hidden');
+  loadingPage.classList.remove('hidden');
+  setTimeout(() => loadingPage.classList.remove('opacity-0'), 50);
+  
+  setTimeout(() => {
+    bootApp();
+    loadingPage.classList.add('opacity-0');
+    setTimeout(() => {
+      loadingPage.classList.add('hidden');
+      appPage.classList.remove('hidden');
+      setTimeout(() => appPage.classList.remove('opacity-0'), 50);
+      lucide.createIcons();
+    }, 400);
+  }, 1000);
+}
+
+function logout() { 
+  if (!confirm('Logout?')) return; 
+  localStorage.removeItem(K.session); 
+  location.reload(); 
+}
+
+// ================= NAV & ROUTING =================
 let currentPage = 'dashboard';
 let absensiDate = todayISO();
 
 function bootApp() {
   const session = getSession();
   if (!session) return;
-  document.getElementById('login-page').classList.add('hidden');
-  document.getElementById('app-page').classList.remove('hidden');
-  document.getElementById('sidebar-role').textContent = session.role + ' — ' + session.nama;
+  document.getElementById('sidebar-role').textContent = session.role.toUpperCase() + ' - ' + session.nama;
   document.getElementById('mobile-role').textContent = session.role;
-  renderNav(); renderPage(); lucide.createIcons();
+  applyTheme(load(K.theme, 'orange'));
+  renderNav(); renderPage();
 }
 
 function renderNav() {
   const s = getSession();
-  const menus = s.role === 'admin' ? [
+  const adminMenus = [
     {id:'dashboard', label:'Dashboard', icon:'home'},
-    {id:'siswa',     label:'Siswa',     icon:'users'},
-    {id:'tentor',    label:'Tentor',    icon:'user-cog'},
-    {id:'jadwal',    label:'Jadwal',    icon:'calendar'},
-    {id:'absensi',   label:'Absensi',   icon:'clipboard-check'},
-    {id:'invoice',   label:'Invoice',   icon:'file-text'},
-    {id:'laporan',   label:'Laporan',   icon:'bar-chart-3'},
-  ] : [
-    {id:'dashboard', label:'Dashboard', icon:'home'},
-    {id:'siswa',     label:'Siswa',     icon:'users'},
-    {id:'jadwal',    label:'Jadwal',    icon:'calendar'},
-    {id:'absensi',   label:'Absensi',   icon:'clipboard-check'},
+    {id:'siswa', label:'Siswa', icon:'users'},
+    {id:'tentor', label:'Tentor', icon:'user-cog'},
+    {id:'jadwal', label:'Jadwal', icon:'calendar'},
+    {id:'absensi', label:'Absensi', icon:'clipboard-check'},
+    {id:'laporan_tentor', label:'Laporan Mengajar', icon:'file-check'},
+    {id:'invoice', label:'Invoice', icon:'file-text'},
+    {id:'keuangan', label:'Laporan Keuangan', icon:'bar-chart-3'},
+    {id:'akun', label:'Akun & Akses', icon:'shield'},
+    {id:'tema', label:'Tema Tampilan', icon:'palette'},
+    {id:'backup', label:'Backup Data (CSV)', icon:'database'},
   ];
+  const tentorMenus = [
+    {id:'dashboard', label:'Dashboard', icon:'home'},
+    {id:'siswa', label:'Siswa', icon:'users'},
+    {id:'jadwal', label:'Jadwal', icon:'calendar'},
+    {id:'absensi', label:'Absensi', icon:'clipboard-check'},
+    {id:'laporan_tentor', label:'Laporan Mengajar', icon:'file-check'},
+  ];
+  const menus = s.role === 'admin' ? adminMenus : tentorMenus;
   document.getElementById('nav').innerHTML = menus.map(m => `
     <button onclick="navigate('${m.id}')" class="flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition ${currentPage===m.id ? 'bg-orange-50 text-orange-700 font-semibold' : 'hover:bg-gray-100 text-gray-700'}">
-      <i data-lucide="${m.icon}" class="w-4 h-4"></i> ${m.label}
+      <i data-lucide="${m.icon}" class="w-4 h-4 flex-shrink-0"></i> <span class="truncate">${m.label}</span>
     </button>`).join('');
   lucide.createIcons();
 }
@@ -194,417 +279,504 @@ function openModal(title, body, onSubmit) {
   lucide.createIcons();
 }
 function closeModal() { document.getElementById('modal').classList.add('hidden'); modalSubmit = null; }
-document.getElementById('modal-body').addEventListener('submit', (e) => {
-  e.preventDefault();
-  if (modalSubmit) modalSubmit(e);
-});
+document.getElementById('modal-body').addEventListener('submit', (e) => { e.preventDefault(); if (modalSubmit) modalSubmit(e); });
 
 // ================= RENDER PAGE =================
 function renderPage() {
   const s = getSession();
   const content = document.getElementById('content');
   const pages = {
-    dashboard: renderDashboard,
-    siswa:    () => renderSiswa(s.role),
-    tentor:   () => renderTentor(s.role),
-    jadwal:   () => renderJadwal(s.role),
-    absensi:  () => renderAbsensi(s.role),
-    invoice:  () => renderInvoice(s.role),
-    laporan:  () => renderLaporan(),
+    dashboard: renderDashboard, siswa: () => renderSiswa(s.role), tentor: () => renderTentor(s.role),
+    jadwal: () => renderJadwal(s.role), absensi: () => renderAbsensi(s.role), invoice: () => renderInvoice(),
+    keuangan: () => renderLaporanKeuangan(), akun: () => renderAkun(), tema: () => renderTema(),
+    backup: () => renderBackup(), laporan_tentor: () => renderLaporanTentor(s.role)
   };
   content.innerHTML = (pages[currentPage] || renderDashboard)();
   lucide.createIcons();
-  if (currentPage === 'laporan') setTimeout(mountChart, 50);
+  if (currentPage === 'keuangan') setTimeout(mountChart, 50);
 }
 
 // ================= DASHBOARD =================
 function renderDashboard() {
-  const siswa = getSiswa(), tentor = getTentor(), inv = getInvoice();
   const session = getSession();
-  const now = new Date();
-  const bulanKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  const pemasukanBulan = inv.filter(i => i.jenis==='siswa' && i.status==='lunas' && (i.tanggal||'').startsWith(bulanKey)).reduce((a,b)=>a+b.total,0);
-  const stats = [
-    { label:'Total Siswa',      value: siswa.length, icon:'users',       color:'orange' },
-    { label:'Total Tentor',     value: tentor.length, icon:'user-cog',   color:'amber'  },
-    { label:'Invoice Belum Bayar', value: inv.filter(i=>i.status==='belum_bayar').length, icon:'file-text', color:'rose' },
-    { label:'Pemasukan Bulan Ini', value: rupiah(pemasukanBulan), icon:'wallet', color:'emerald' },
+  const siswa = getSiswa(), tentor = getTentor(), inv = getInvoice(), logs = load(K.secLog, []);
+  
+  let secAlert = '';
+  if (session.role === 'admin' && logs.length > 0) {
+    secAlert = `
+      <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded-r-lg flex justify-between items-start">
+        <div>
+          <h3 class="text-red-800 font-bold flex items-center gap-2"><i data-lucide="alert-triangle" class="w-5 h-5"></i> Peringatan Keamanan</h3>
+          <p class="text-red-700 text-sm mt-1">Terdapat ${logs.length} percobaan login gagal. Pastikan ini bukan Anda!</p>
+        </div>
+        <button onclick="clearSecLog()" class="text-xs text-red-600 hover:text-red-800 border border-red-300 px-3 py-1 rounded">Hapus Notif</button>
+      </div>`;
+  }
+
+  const pemasukan = inv.filter(i=>i.jenis==='siswa' && i.status==='lunas').reduce((a,b)=>a+b.total,0);
+
+  // Kondisi: Sembunyikan pemasukan jika role adalah tentor
+  const pemasukanCard = session.role === 'admin' ? `
+    <div class="bg-white rounded-xl p-4 border">
+      <div class="text-xs text-gray-500 mb-2">Pemasukan Lunas</div>
+      <div class="text-xl font-bold text-emerald-600">${rupiah(pemasukan)}</div>
+    </div>` : '';
+
+  // Sesuaikan jumlah kolom grid: 4 untuk admin, 3 untuk tentor
+  const gridClass = session.role === 'admin' ? 'md:grid-cols-4' : 'md:grid-cols-3';
+
+  return `
+    <div>
+      ${secAlert}
+      <h1 class="text-2xl font-bold mb-1">Dashboard ${session.role==='admin'?'Admin':'Tentor'}</h1>
+      <p class="text-gray-500 mb-6 text-sm">Selamat datang, ${escapeHtml(session.nama)} 👋</p>
+      <div class="grid grid-cols-2 ${gridClass} gap-4 mb-6">
+        <div class="bg-white rounded-xl p-4 border"><div class="text-xs text-gray-500 mb-2">Total Siswa</div><div class="text-xl font-bold">${siswa.length}</div></div>
+        <div class="bg-white rounded-xl p-4 border"><div class="text-xs text-gray-500 mb-2">Total Tentor</div><div class="text-xl font-bold">${tentor.length}</div></div>
+        ${pemasukanCard}
+        <div class="bg-white rounded-xl p-4 border"><div class="text-xs text-gray-500 mb-2">Total Laporan</div><div class="text-xl font-bold text-orange-600">${getLaporan().length}</div></div>
+      </div>
+    </div>`;
+}
+function clearSecLog() { save(K.secLog, []); renderPage(); }
+
+// ================= AKUN & AKSES =================
+function renderAkun() {
+  const users = getUsers();
+  return `
+    <div>
+      <div class="flex justify-between items-center mb-4">
+        <div><h1 class="text-2xl font-bold">Akun & Akses</h1><p class="text-gray-500 text-sm">Kelola user yang bisa login</p></div>
+        <button onclick="openUserForm()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm">+ Tambah Akun</button>
+      </div>
+      <div class="bg-white rounded-xl border overflow-hidden">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50"><tr>
+            <th class="text-left px-4 py-3">Nama</th><th class="text-left px-4 py-3">Email</th>
+            <th class="text-left px-4 py-3">Role</th><th class="text-right px-4 py-3">Aksi</th>
+          </tr></thead>
+          <tbody>
+            ${users.map(u => `
+              <tr class="border-t hover:bg-gray-50">
+                <td class="px-4 py-3 font-medium">${escapeHtml(u.nama)}</td>
+                <td class="px-4 py-3 text-gray-600">${escapeHtml(u.email)}</td>
+                <td class="px-4 py-3"><span class="px-2 py-1 text-xs rounded ${u.role==='admin'?'bg-rose-100 text-rose-700':'bg-emerald-100 text-emerald-700'}">${u.role}</span></td>
+                <td class="px-4 py-3 text-right">
+                  <button onclick="resetPass('${u.id}')" class="text-blue-600 hover:bg-blue-50 px-2 py-1 rounded text-xs border border-blue-200 mr-1">Reset Pass</button>
+                  ${u.email !== 'admin@bimbel.com' ? `<button onclick="delUser('${u.id}')" class="text-red-600 hover:bg-red-50 p-1.5 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : ''}
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+function openUserForm() {
+  const body = `
+    <form><div class="space-y-3">
+      <div><label class="text-sm">Nama Lengkap *</label><input name="nama" required class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+      <div><label class="text-sm">Email *</label><input name="email" type="email" required class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+      <div><label class="text-sm">Password *</label><input name="password" required class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+      <div><label class="text-sm">Role *</label>
+        <select name="role" class="w-full border rounded-lg px-3 py-2 mt-1">
+          <option value="tentor">Tentor</option><option value="admin">Admin</option>
+        </select></div>
+      <button type="submit" class="w-full bg-orange-600 text-white py-2 rounded-lg mt-4">Simpan</button>
+    </div></form>`;
+  openModal('Tambah Akun Baru', body, (e) => {
+    const f = e.target;
+    const users = getUsers();
+    users.push({ id:'u'+Date.now(), nama:f.nama.value, email:f.email.value, password:f.password.value, role:f.role.value });
+    saveUsers(users); closeModal(); renderPage();
+  });
+}
+function resetPass(id) {
+  const newPass = prompt('Masukkan password baru untuk akun ini:');
+  if (!newPass) return;
+  const users = getUsers();
+  const i = users.findIndex(u => u.id === id);
+  if (i >= 0) { users[i].password = newPass; saveUsers(users); alert('Password berhasil direset!'); }
+}
+function delUser(id) { if(confirm('Hapus akun ini?')) { saveUsers(getUsers().filter(u=>u.id!==id)); renderPage(); } }
+
+// ================= TEMA =================
+function renderTema() {
+  const curr = load(K.theme, 'orange');
+  const themes = [
+    { id:'orange', name:'Oranye (Default)', color:'bg-orange-500' },
+    { id:'blue', name:'Biru Profesional', color:'bg-blue-500' },
+    { id:'green', name:'Hijau Segar', color:'bg-green-500' },
+    { id:'purple', name:'Ungu Elegan', color:'bg-purple-500' },
+    { id:'rose', name:'Merah Muda', color:'bg-rose-500' },
   ];
   return `
     <div>
-      <h1 class="text-2xl font-bold mb-1">Dashboard ${session.role==='admin'?'Admin':'Tentor'}</h1>
-      <p class="text-gray-500 mb-6 text-sm">Selamat datang, ${escapeHtml(session.nama)} 👋</p>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        ${stats.map(x=>`
-          <div class="bg-white rounded-xl p-4 border">
-            <div class="flex items-center justify-between mb-2">
-              <span class="text-xs text-gray-500">${x.label}</span>
-              <i data-lucide="${x.icon}" class="w-4 h-4 text-${x.color}-500"></i>
+      <h1 class="text-2xl font-bold mb-1">Tema Tampilan</h1>
+      <p class="text-gray-500 mb-6 text-sm">Pilih warna dasar untuk website Anda</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        ${themes.map(t => `
+          <button onclick="setTheme('${t.id}')" class="bg-white p-4 rounded-xl border-2 ${curr===t.id?'border-orange-600 shadow-md':'border-gray-200 hover:border-gray-300'} flex items-center gap-4 transition">
+            <div class="w-10 h-10 rounded-full ${t.color}"></div>
+            <div class="text-left">
+              <div class="font-bold">${t.name}</div>
+              <div class="text-xs text-gray-500">${curr===t.id?'Sedang Digunakan ✓':'Klik untuk pakai'}</div>
             </div>
-            <div class="text-lg md:text-2xl font-bold truncate">${x.value}</div>
-          </div>`).join('')}
+          </button>`).join('')}
       </div>
-      <div class="bg-white rounded-xl p-6 border">
-        <h2 class="font-semibold mb-3">Aksi Cepat</h2>
-        <div class="flex flex-wrap gap-2">
-          ${session.role==='admin' ? `
-            <button onclick="navigate('siswa'); setTimeout(()=>openSiswaForm(),150)" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-orange-700">➕ Tambah Siswa</button>
-            <button onclick="navigate('tentor'); setTimeout(()=>openTentorForm(),150)" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-emerald-700">➕ Tambah Tentor</button>
-            <button onclick="navigate('invoice'); setTimeout(()=>openInvoiceForm(),150)" class="bg-rose-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-rose-700">🧾 Buat Invoice</button>
-          ` : ''}
-          <button onclick="navigate('absensi')" class="border px-4 py-2 rounded-lg text-sm hover:bg-gray-50">📋 Isi Absensi</button>
-          <button onclick="navigate('jadwal')" class="border px-4 py-2 rounded-lg text-sm hover:bg-gray-50">📅 Lihat Jadwal</button>
+    </div>`;
+}
+function setTheme(theme) { save(K.theme, theme); applyTheme(theme); renderPage(); }
+
+// ================= BACKUP CSV =================
+function renderBackup() {
+  return `
+    <div>
+      <h1 class="text-2xl font-bold mb-1">Backup Data Spreadsheet</h1>
+      <p class="text-gray-500 mb-6 text-sm">Download data dalam format .CSV (bisa dibuka di Excel / Google Sheets)</p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-white p-6 rounded-xl border flex flex-col items-start">
+          <i data-lucide="users" class="w-8 h-8 text-blue-500 mb-3"></i>
+          <h3 class="font-bold text-lg mb-1">Data Siswa</h3>
+          <p class="text-sm text-gray-500 mb-4 flex-1">Berisi nama, kelas, ortu, no wa, dan tarif.</p>
+          <button onclick="downloadCSV('siswa')" class="bg-blue-600 text-white px-4 py-2 rounded-lg w-full">📥 Download CSV</button>
+        </div>
+        <div class="bg-white p-6 rounded-xl border flex flex-col items-start">
+          <i data-lucide="user-cog" class="w-8 h-8 text-emerald-500 mb-3"></i>
+          <h3 class="font-bold text-lg mb-1">Data Tentor</h3>
+          <p class="text-sm text-gray-500 mb-4 flex-1">Berisi nama, email, mapel, no wa, dan tarif.</p>
+          <button onclick="downloadCSV('tentor')" class="bg-emerald-600 text-white px-4 py-2 rounded-lg w-full">📥 Download CSV</button>
+        </div>
+        <div class="bg-white p-6 rounded-xl border flex flex-col items-start">
+          <i data-lucide="clipboard-check" class="w-8 h-8 text-amber-500 mb-3"></i>
+          <h3 class="font-bold text-lg mb-1">Data Absensi Siswa</h3>
+          <p class="text-sm text-gray-500 mb-4 flex-1">Berisi rekap tanggal, nama siswa, dan status.</p>
+          <button onclick="downloadCSV('absensi')" class="bg-amber-600 text-white px-4 py-2 rounded-lg w-full">📥 Download CSV</button>
+        </div>
+        <div class="bg-white p-6 rounded-xl border flex flex-col items-start">
+          <i data-lucide="file-check" class="w-8 h-8 text-purple-500 mb-3"></i>
+          <h3 class="font-bold text-lg mb-1">Laporan Mengajar</h3>
+          <p class="text-sm text-gray-500 mb-4 flex-1">Berisi catatan perkembangan dan link foto.</p>
+          <button onclick="downloadCSV('laporan')" class="bg-purple-600 text-white px-4 py-2 rounded-lg w-full">📥 Download CSV</button>
         </div>
       </div>
     </div>`;
 }
 
-// ================= SISWA =================
-let searchSiswa = '';
-function renderSiswa(role) {
-  const all = getSiswa(), tentors = getTentor();
-  const q = searchSiswa.toLowerCase();
-  const list = all.filter(s => !q || s.nama.toLowerCase().includes(q) || (s.kelas||'').toLowerCase().includes(q) || (s.nama_orang_tua||'').toLowerCase().includes(q));
-  const canEdit = role === 'admin';
+function downloadCSV(type) {
+  let headers = [], rows = [], filename = '';
+  if (type === 'siswa') {
+    headers = ['ID','Nama','Kelas','Orang Tua','No WA','Alamat','Aktif','Tarif Bulanan'];
+    rows = getSiswa().map(s => [s.id, s.nama, s.kelas, s.nama_orang_tua, s.no_wa, s.alamat, s.aktif?'Ya':'Tidak', s.tarif_bulanan]);
+    filename = 'Data_Siswa.csv';
+  } else if (type === 'tentor') {
+    headers = ['ID','Nama','Email','Mapel','No WA','Tarif/Sesi','Aktif'];
+    rows = getTentor().map(t => [t.id, t.nama, t.email, t.mapel, t.no_wa, t.tarif, t.aktif?'Ya':'Tidak']);
+    filename = 'Data_Tentor.csv';
+  } else if (type === 'absensi') {
+    headers = ['Tanggal','Nama Siswa','Kelas','Status','Diisi Oleh'];
+    const siswas = getSiswa();
+    rows = getAbsensi().map(a => {
+      const s = siswas.find(x=>x.id===a.siswa_id) || {};
+      return [a.tanggal, s.nama||'-', s.kelas||'-', a.status, a.oleh||'-'];
+    });
+    filename = 'Data_Absensi.csv';
+  } else if (type === 'laporan') {
+    headers = ['Tanggal','Nama Tentor','Nama Siswa','Mapel','Catatan Perkembangan','Link Foto'];
+    const siswas = getSiswa(), tentors = getTentor();
+    rows = getLaporan().map(l => {
+      const t = tentors.find(x=>x.id===l.tentor_id) || {};
+      const s = siswas.find(x=>x.id===l.siswa_id) || {};
+      return [l.tanggal, t.nama||'-', s.nama||'-', l.mapel||'-', l.catatan, 'Ada Foto (Base64)'];
+    });
+    filename = 'Laporan_Mengajar.csv';
+  }
+  
+  const csvContent = [headers, ...rows].map(e => e.map(c => `"${String(c||'').replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+}
+
+// ================= LAPORAN TENTOR (FOTO) =================
+function renderLaporanTentor(role) {
+  const laporan = getLaporan().slice().reverse();
+  const siswas = getSiswa(), tentors = getTentor();
   return `
     <div>
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+      <div class="flex justify-between items-center mb-4">
+        <div><h1 class="text-2xl font-bold">Laporan Mengajar</h1><p class="text-gray-500 text-sm">Bukti kehadiran & progres</p></div>
+        ${role==='tentor' ? `<button onclick="openLaporanForm()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm">+ Buat Laporan</button>` : ''}
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        ${laporan.length===0 ? '<div class="col-span-2 text-center text-gray-400 py-8 bg-white border rounded-xl">Belum ada laporan.</div>' : 
+        laporan.map(l => {
+          const s = siswas.find(x=>x.id===l.siswa_id) || {};
+          const t = tentors.find(x=>x.id===l.tentor_id) || {};
+          return `
+            <div class="bg-white rounded-xl border overflow-hidden flex flex-col">
+              ${l.foto ? `<img src="${l.foto}" class="w-full h-48 object-cover border-b" />` : '<div class="w-full h-48 bg-gray-100 flex items-center justify-center border-b text-gray-400">Tanpa Foto</div>'}
+              <div class="p-4 flex-1 flex flex-col">
+                <div class="flex justify-between items-start mb-2">
+                  <div><div class="font-bold text-lg">${escapeHtml(s.nama||'Siswa Dihapus')}</div><div class="text-xs text-gray-500">${l.tanggal} • ${l.mapel}</div></div>
+                  <span class="text-xs bg-gray-100 px-2 py-1 rounded">Oleh: ${escapeHtml(t.nama||'-')}</span>
+                </div>
+                <p class="text-sm text-gray-700 flex-1">${escapeHtml(l.catatan)}</p>
+              </div>
+            </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+
+function openLaporanForm() {
+  const session = getSession();
+  const tentor = getTentor().find(t => t.email === session.email) || getTentor()[0];
+  const siswas = getSiswa();
+  const body = `
+    <form id="form-laporan">
+      <div class="space-y-3">
+        <div><label class="text-sm font-medium">Pilih Siswa *</label>
+          <select name="siswa_id" required class="w-full border rounded-lg px-3 py-2 mt-1">
+            ${siswas.map(s=>`<option value="${s.id}">${escapeHtml(s.nama)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="text-sm font-medium">Tanggal</label><input name="tanggal" type="date" required value="${todayISO()}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+          <div><label class="text-sm font-medium">Mata Pelajaran</label><input name="mapel" required value="${escapeHtml(tentor?.mapel||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+        </div>
+        <div><label class="text-sm font-medium">Perkembangan Hari Ini *</label><textarea name="catatan" required rows="3" class="w-full border rounded-lg px-3 py-2 mt-1" placeholder="Contoh: Siswa sudah paham perkalian dasar..."></textarea></div>
+        <div>
+          <label class="text-sm font-medium">Upload Bukti Foto *</label>
+          <input type="file" id="foto-input" accept="image/*" required class="w-full border rounded-lg px-3 py-2 mt-1 text-sm" />
+          <div id="foto-preview" class="mt-2 text-xs text-gray-500">Belum ada foto dipilih.</div>
+        </div>
+        <button type="submit" class="w-full bg-orange-600 text-white py-2 rounded-lg mt-4 font-semibold">Kirim Laporan</button>
+      </div>
+    </form>`;
+  
+  openModal('Buat Laporan Mengajar', body, (e) => {
+    const f = e.target;
+    const fileInput = document.getElementById('foto-input');
+    
+    const file = fileInput.files[0];
+    if (!file) { alert('Pilih foto terlebih dahulu!'); return; }
+
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 600;
+        const scale = MAX_WIDTH / img.width;
+        canvas.width = MAX_WIDTH;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const base64 = canvas.toDataURL('image/jpeg', 0.7); 
+        
+        const newLaporan = {
+          id: 'l'+Date.now(),
+          tentor_id: tentor.id,
+          siswa_id: f.siswa_id.value,
+          tanggal: f.tanggal.value,
+          mapel: f.mapel.value,
+          catatan: f.catatan.value,
+          foto: base64
+        };
+        const list = getLaporan();
+        list.push(newLaporan);
+        saveLaporan(list);
+        closeModal(); renderPage();
+      };
+      img.src = evt.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ================= FITUR SISWA & TENTOR =================
+function renderSiswa(role) {
+  const all = getSiswa(), tentors = getTentor();
+  return `
+    <div>
+      <div class="flex justify-between items-center mb-4">
         <div><h1 class="text-2xl font-bold">Daftar Siswa</h1><p class="text-gray-500 text-sm">${all.length} siswa terdaftar</p></div>
-        ${canEdit ? `<button onclick="openSiswaForm()" class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 self-start"><i data-lucide="user-plus" class="w-4 h-4"></i> Tambah Siswa</button>` : ''}
+        ${role==='admin'?`<button onclick="openSiswaForm()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm">+ Tambah Siswa</button>`:''}
       </div>
       <div class="bg-white rounded-xl border overflow-hidden">
-        <div class="p-3 border-b">
-          <input oninput="searchSiswa=this.value; renderPage();" value="${escapeHtml(searchSiswa)}" placeholder="🔍 Cari nama, kelas, orang tua..." class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
-        </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead class="bg-gray-50 text-gray-600"><tr>
-              <th class="text-left px-4 py-3">Nama</th>
-              <th class="text-left px-4 py-3">Kelas</th>
-              <th class="text-left px-4 py-3">Orang Tua</th>
-              <th class="text-left px-4 py-3">Tentor</th>
-              <th class="text-left px-4 py-3">No WA</th>
-              <th class="text-left px-4 py-3">Status</th>
-              ${canEdit ? '<th class="text-right px-4 py-3">Aksi</th>' : ''}
-            </tr></thead>
-            <tbody>
-              ${list.length===0 ? `<tr><td colspan="${canEdit?7:6}" class="text-center text-gray-400 py-8">${searchSiswa?'Tidak ada hasil.':'Belum ada siswa.'}</td></tr>` :
-              list.map(s => {
-                const t = tentors.find(x=>x.id===s.tentor_id);
-                return `<tr class="border-t hover:bg-gray-50">
-                  <td class="px-4 py-3 font-medium">${escapeHtml(s.nama)}</td>
-                  <td class="px-4 py-3">${escapeHtml(s.kelas||'-')}</td>
-                  <td class="px-4 py-3">${escapeHtml(s.nama_orang_tua||'-')}</td>
-                  <td class="px-4 py-3">${t?escapeHtml(t.nama):'-'}</td>
-                  <td class="px-4 py-3">${s.no_wa?`<a href="https://wa.me/${formatWa(s.no_wa)}" target="_blank" class="text-green-600 hover:underline">${escapeHtml(s.no_wa)}</a>`:'-'}</td>
-                  <td class="px-4 py-3">${s.aktif?'<span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded">Aktif</span>':'<span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">Nonaktif</span>'}</td>
-                  ${canEdit?`<td class="px-4 py-3 text-right whitespace-nowrap">
-                    <button onclick="openSiswaForm('${s.id}')" class="text-orange-600 hover:bg-orange-50 p-1.5 rounded"><i data-lucide="pencil" class="w-4 h-4"></i></button>
-                    <button onclick="deleteSiswa('${s.id}')" class="text-red-600 hover:bg-red-50 p-1.5 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                  </td>`:''}
-                </tr>`;
-              }).join('')}
-            </tbody>
-          </table>
-        </div>
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50"><tr><th class="text-left px-4 py-3">Nama</th><th class="text-left px-4 py-3">Kelas</th><th class="text-left px-4 py-3">Ortu</th><th class="text-left px-4 py-3">Tentor</th>${role==='admin'?'<th class="text-right px-4 py-3">Aksi</th>':''}</tr></thead>
+          <tbody>
+            ${all.map(s=>{
+              const t = tentors.find(x=>x.id===s.tentor_id);
+              return `<tr class="border-t">
+                <td class="px-4 py-3 font-medium">${escapeHtml(s.nama)}</td>
+                <td class="px-4 py-3">${escapeHtml(s.kelas)}</td>
+                <td class="px-4 py-3">${escapeHtml(s.nama_orang_tua)}</td>
+                <td class="px-4 py-3">${t?escapeHtml(t.nama):'-'}</td>
+                ${role==='admin'?`<td class="px-4 py-3 text-right">
+                  <button onclick="openSiswaForm('${s.id}')" class="text-orange-600 p-1.5"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+                  <button onclick="delSiswa('${s.id}')" class="text-red-600 p-1.5"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                </td>`:''}
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
       </div>
     </div>`;
 }
 function openSiswaForm(id) {
   const editing = id ? getSiswa().find(x=>x.id===id) : null;
   const tentors = getTentor();
-  const body = `
-    <form>
-      <div class="space-y-3">
-        <div><label class="text-sm font-medium">Nama Siswa *</label><input name="nama" required value="${escapeHtml(editing?.nama||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
-        <div class="grid grid-cols-2 gap-3">
-          <div><label class="text-sm font-medium">Kelas</label><input name="kelas" value="${escapeHtml(editing?.kelas||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" placeholder="SD 5" /></div>
-          <div><label class="text-sm font-medium">Tarif Bulanan (Rp)</label><input name="tarif_bulanan" type="number" min="0" value="${editing?.tarif_bulanan||''}" class="w-full border rounded-lg px-3 py-2 mt-1" placeholder="300000" /></div>
-        </div>
-        <div><label class="text-sm font-medium">Nama Orang Tua *</label><input name="nama_orang_tua" required value="${escapeHtml(editing?.nama_orang_tua||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
-        <div><label class="text-sm font-medium">No WhatsApp</label><input name="no_wa" value="${escapeHtml(editing?.no_wa||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" placeholder="08xxxxxxxxxx" /></div>
-        <div><label class="text-sm font-medium">Alamat</label><textarea name="alamat" rows="2" class="w-full border rounded-lg px-3 py-2 mt-1">${escapeHtml(editing?.alamat||'')}</textarea></div>
-        <div><label class="text-sm font-medium">Tentor Pembimbing</label>
-          <select name="tentor_id" class="w-full border rounded-lg px-3 py-2 mt-1">
-            <option value="">— Belum ditentukan —</option>
-            ${tentors.map(t=>`<option value="${t.id}" ${editing?.tentor_id===t.id?'selected':''}>${escapeHtml(t.nama)} (${escapeHtml(t.mapel||'-')})</option>`).join('')}
-          </select>
-        </div>
-        <label class="flex items-center gap-2"><input type="checkbox" name="aktif" ${editing===null||editing.aktif?'checked':''} /> <span class="text-sm">Siswa Aktif</span></label>
-        <div class="flex gap-2 pt-2">
-          <button type="button" onclick="closeModal()" class="flex-1 border rounded-lg py-2 hover:bg-gray-50">Batal</button>
-          <button type="submit" class="flex-1 bg-orange-600 text-white rounded-lg py-2 font-semibold hover:bg-orange-700">Simpan</button>
-        </div>
-      </div>
-    </form>`;
-  openModal(editing ? 'Edit Siswa' : 'Tambah Siswa Baru', body, (e) => {
-    const f = e.target;
-    const data = {
-      nama: f.nama.value.trim(),
-      kelas: f.kelas.value.trim(),
-      nama_orang_tua: f.nama_orang_tua.value.trim(),
-      no_wa: f.no_wa.value.trim(),
-      alamat: f.alamat.value.trim(),
-      tentor_id: f.tentor_id.value || null,
-      tarif_bulanan: Number(f.tarif_bulanan.value)||0,
-      aktif: f.aktif.checked,
-    };
-    const list = getSiswa();
-    if (editing) {
-      const i = list.findIndex(x=>x.id===editing.id);
-      list[i] = { ...list[i], ...data };
-    } else {
-      list.push({ id:'s'+Date.now(), ...data, created_at: new Date().toISOString() });
-    }
-    saveSiswa(list); closeModal(); renderPage();
+  const body = `<form><div class="space-y-3">
+    <div><label class="text-sm">Nama *</label><input name="nama" required value="${escapeHtml(editing?.nama||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+    <div><label class="text-sm">Kelas</label><input name="kelas" value="${escapeHtml(editing?.kelas||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+    <div><label class="text-sm">Orang Tua *</label><input name="nama_orang_tua" required value="${escapeHtml(editing?.nama_orang_tua||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+    <div><label class="text-sm">Tentor</label><select name="tentor_id" class="w-full border rounded-lg px-3 py-2 mt-1"><option value="">-</option>${tentors.map(t=>`<option value="${t.id}" ${editing?.tentor_id===t.id?'selected':''}>${escapeHtml(t.nama)}</option>`).join('')}</select></div>
+    <button type="submit" class="w-full bg-orange-600 text-white py-2 rounded-lg">Simpan</button>
+  </div></form>`;
+  openModal(editing?'Edit Siswa':'Tambah Siswa', body, (e)=>{
+    const f=e.target; const list=getSiswa();
+    const data={nama:f.nama.value,kelas:f.kelas.value,nama_orang_tua:f.nama_orang_tua.value,tentor_id:f.tentor_id.value,aktif:true};
+    if(editing){const i=list.findIndex(x=>x.id===editing.id);list[i]={...list[i],...data};}else{list.push({id:'s'+Date.now(),...data});}
+    saveSiswa(list);closeModal();renderPage();
   });
 }
-function deleteSiswa(id) {
-  const s = getSiswa().find(x=>x.id===id);
-  if (!s || !confirm(`Hapus siswa "${s.nama}"?`)) return;
-  saveSiswa(getSiswa().filter(x=>x.id!==id));
-  saveJadwal(getJadwal().filter(j=>j.siswa_id!==id));
-  renderPage();
-}
+function delSiswa(id) { if(confirm('Hapus siswa ini?')){ saveSiswa(getSiswa().filter(x=>x.id!==id)); renderPage(); } }
 
-// ================= TENTOR =================
-let searchTentor = '';
 function renderTentor(role) {
   const all = getTentor();
-  const q = searchTentor.toLowerCase();
-  const list = all.filter(t => !q || t.nama.toLowerCase().includes(q) || (t.mapel||'').toLowerCase().includes(q) || (t.email||'').toLowerCase().includes(q));
-  const canEdit = role === 'admin';
   return `
     <div>
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+      <div class="flex justify-between items-center mb-4">
         <div><h1 class="text-2xl font-bold">Daftar Tentor</h1><p class="text-gray-500 text-sm">${all.length} tentor terdaftar</p></div>
-        ${canEdit?`<button onclick="openTentorForm()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 self-start"><i data-lucide="user-plus" class="w-4 h-4"></i> Tambah Tentor</button>`:''}
+        ${role==='admin'?`<button onclick="openTentorForm()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm">+ Tambah Tentor</button>`:''}
       </div>
       <div class="bg-white rounded-xl border overflow-hidden">
-        <div class="p-3 border-b"><input oninput="searchTentor=this.value; renderPage();" value="${escapeHtml(searchTentor)}" placeholder="🔍 Cari nama, mapel, email..." class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" /></div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead class="bg-gray-50 text-gray-600"><tr>
-              <th class="text-left px-4 py-3">Nama</th>
-              <th class="text-left px-4 py-3">Mapel</th>
-              <th class="text-left px-4 py-3">Email</th>
-              <th class="text-left px-4 py-3">No WA</th>
-              <th class="text-left px-4 py-3">Tarif/Sesi</th>
-              <th class="text-left px-4 py-3">Status</th>
-              ${canEdit?'<th class="text-right px-4 py-3">Aksi</th>':''}
-            </tr></thead>
-            <tbody>
-              ${list.length===0?`<tr><td colspan="${canEdit?7:6}" class="text-center text-gray-400 py-8">${searchTentor?'Tidak ada hasil.':'Belum ada tentor.'}</td></tr>`:
-              list.map(t=>`<tr class="border-t hover:bg-gray-50">
-                <td class="px-4 py-3 font-medium">${escapeHtml(t.nama)}</td>
-                <td class="px-4 py-3">${escapeHtml(t.mapel||'-')}</td>
-                <td class="px-4 py-3 text-gray-600">${escapeHtml(t.email||'-')}</td>
-                <td class="px-4 py-3">${t.no_wa?`<a href="https://wa.me/${formatWa(t.no_wa)}" target="_blank" class="text-green-600 hover:underline">${escapeHtml(t.no_wa)}</a>`:'-'}</td>
-                <td class="px-4 py-3">${rupiah(t.tarif||0)}</td>
-                <td class="px-4 py-3">${t.aktif?'<span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded">Aktif</span>':'<span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">Nonaktif</span>'}</td>
-                ${canEdit?`<td class="px-4 py-3 text-right whitespace-nowrap">
-                  <button onclick="openTentorForm('${t.id}')" class="text-orange-600 hover:bg-orange-50 p-1.5 rounded"><i data-lucide="pencil" class="w-4 h-4"></i></button>
-                  <button onclick="deleteTentor('${t.id}')" class="text-red-600 hover:bg-red-50 p-1.5 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                </td>`:''}
-              </tr>`).join('')}
-            </tbody>
-          </table>
-        </div>
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50"><tr><th class="text-left px-4 py-3">Nama</th><th class="text-left px-4 py-3">Mapel</th><th class="text-left px-4 py-3">Email</th>${role==='admin'?'<th class="text-right px-4 py-3">Aksi</th>':''}</tr></thead>
+          <tbody>
+            ${all.map(t=>`<tr class="border-t">
+              <td class="px-4 py-3 font-medium">${escapeHtml(t.nama)}</td>
+              <td class="px-4 py-3">${escapeHtml(t.mapel)}</td>
+              <td class="px-4 py-3">${escapeHtml(t.email)}</td>
+              ${role==='admin'?`<td class="px-4 py-3 text-right">
+                <button onclick="openTentorForm('${t.id}')" class="text-orange-600 p-1.5"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+                <button onclick="delTentor('${t.id}')" class="text-red-600 p-1.5"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </td>`:''}
+            </tr>`).join('')}
+          </tbody>
+        </table>
       </div>
     </div>`;
 }
 function openTentorForm(id) {
   const editing = id ? getTentor().find(x=>x.id===id) : null;
-  const body = `
-    <form>
-      <div class="space-y-3">
-        <div><label class="text-sm font-medium">Nama Tentor *</label><input name="nama" required value="${escapeHtml(editing?.nama||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
-        <div><label class="text-sm font-medium">Email</label><input name="email" type="email" value="${escapeHtml(editing?.email||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
-        <div><label class="text-sm font-medium">Mata Pelajaran</label><input name="mapel" value="${escapeHtml(editing?.mapel||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
-        <div><label class="text-sm font-medium">No WhatsApp</label><input name="no_wa" value="${escapeHtml(editing?.no_wa||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
-        <div><label class="text-sm font-medium">Tarif per Sesi (Rp)</label><input name="tarif" type="number" min="0" value="${editing?.tarif||''}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
-        <label class="flex items-center gap-2"><input type="checkbox" name="aktif" ${editing===null||editing.aktif?'checked':''} /> <span class="text-sm">Tentor Aktif</span></label>
-        <div class="flex gap-2 pt-2">
-          <button type="button" onclick="closeModal()" class="flex-1 border rounded-lg py-2 hover:bg-gray-50">Batal</button>
-          <button type="submit" class="flex-1 bg-emerald-600 text-white rounded-lg py-2 font-semibold hover:bg-emerald-700">Simpan</button>
-        </div>
-      </div>
-    </form>`;
-  openModal(editing ? 'Edit Tentor' : 'Tambah Tentor Baru', body, (e) => {
-    const f = e.target;
-    const data = {
-      nama: f.nama.value.trim(), email: f.email.value.trim(), mapel: f.mapel.value.trim(),
-      no_wa: f.no_wa.value.trim(), tarif: Number(f.tarif.value)||0, aktif: f.aktif.checked,
-    };
-    const list = getTentor();
-    if (editing) { const i = list.findIndex(x=>x.id===editing.id); list[i] = { ...list[i], ...data }; }
-    else { list.push({ id:'t'+Date.now(), ...data, created_at:new Date().toISOString() }); }
-    saveTentor(list); closeModal(); renderPage();
+  const body = `<form><div class="space-y-3">
+    <div><label class="text-sm">Nama *</label><input name="nama" required value="${escapeHtml(editing?.nama||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+    <div><label class="text-sm">Email</label><input name="email" type="email" value="${escapeHtml(editing?.email||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+    <div><label class="text-sm">Mapel</label><input name="mapel" value="${escapeHtml(editing?.mapel||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+    <div><label class="text-sm">Tarif per Sesi (Rp)</label><input name="tarif" type="number" value="${editing?.tarif||''}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+    <button type="submit" class="w-full bg-emerald-600 text-white py-2 rounded-lg">Simpan</button>
+  </div></form>`;
+  openModal(editing?'Edit Tentor':'Tambah Tentor', body, (e)=>{
+    const f=e.target; const list=getTentor();
+    const data={nama:f.nama.value,email:f.email.value,mapel:f.mapel.value,tarif:Number(f.tarif.value)||0,aktif:true};
+    if(editing){const i=list.findIndex(x=>x.id===editing.id);list[i]={...list[i],...data};}else{list.push({id:'t'+Date.now(),...data});}
+    saveTentor(list);closeModal();renderPage();
   });
 }
-function deleteTentor(id) {
-  const t = getTentor().find(x=>x.id===id);
-  if (!t || !confirm(`Hapus tentor "${t.nama}"?`)) return;
-  saveTentor(getTentor().filter(x=>x.id!==id));
-  saveJadwal(getJadwal().filter(j=>j.tentor_id!==id));
-  const siswa = getSiswa().map(s => s.tentor_id===id ? {...s, tentor_id:null} : s);
-  saveSiswa(siswa);
-  renderPage();
-}
+function delTentor(id) { if(confirm('Hapus tentor ini?')){ saveTentor(getTentor().filter(x=>x.id!==id)); renderPage(); } }
 
-// ================= JADWAL =================
+// ================= JADWAL & ABSENSI =================
 function renderJadwal(role) {
-  const jadwal = getJadwal();
-  const siswas = getSiswa(), tentors = getTentor();
-  const canEdit = role === 'admin';
-  const grouped = HARI.map(h => ({ hari:h, items: jadwal.filter(j=>j.hari===h) })).filter(g=>g.items.length>0);
+  const jadwal = getJadwal(), siswas = getSiswa(), tentors = getTentor();
   return `
     <div>
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-        <div><h1 class="text-2xl font-bold">Jadwal Bimbel</h1><p class="text-gray-500 text-sm">${jadwal.length} sesi terdaftar</p></div>
-        ${canEdit?`<button onclick="openJadwalForm()" class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 self-start"><i data-lucide="plus" class="w-4 h-4"></i> Tambah Jadwal</button>`:''}
-      </div>
-      ${grouped.length===0 ? '<div class="bg-white rounded-xl border p-8 text-center text-gray-400">Belum ada jadwal.</div>' :
-      grouped.map(g=>`
-        <div class="bg-white rounded-xl border mb-4 overflow-hidden">
-          <div class="px-4 py-3 bg-orange-50 font-semibold text-orange-800">${g.hari}</div>
-          <div class="overflow-x-auto"><table class="w-full text-sm">
-            <thead class="bg-gray-50 text-gray-600"><tr>
-              <th class="text-left px-4 py-2">Jam</th>
-              <th class="text-left px-4 py-2">Siswa</th>
-              <th class="text-left px-4 py-2">Tentor</th>
-              <th class="text-left px-4 py-2">Mapel</th>
-              ${canEdit?'<th class="text-right px-4 py-2">Aksi</th>':''}
-            </tr></thead>
-            <tbody>
-              ${g.items.map(j=>{
-                const s = siswas.find(x=>x.id===j.siswa_id);
-                const t = tentors.find(x=>x.id===j.tentor_id);
-                return `<tr class="border-t">
-                  <td class="px-4 py-2 whitespace-nowrap">${j.jam_mulai} – ${j.jam_selesai}</td>
-                  <td class="px-4 py-2 font-medium">${escapeHtml(s?.nama||'-')}</td>
-                  <td class="px-4 py-2">${escapeHtml(t?.nama||'-')}</td>
-                  <td class="px-4 py-2">${escapeHtml(j.mapel||'-')}</td>
-                  ${canEdit?`<td class="px-4 py-2 text-right whitespace-nowrap">
-                    <button onclick="openJadwalForm('${j.id}')" class="text-orange-600 hover:bg-orange-50 p-1.5 rounded"><i data-lucide="pencil" class="w-4 h-4"></i></button>
-                    <button onclick="deleteJadwal('${j.id}')" class="text-red-600 hover:bg-red-50 p-1.5 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                  </td>`:''}
-                </tr>`;
-              }).join('')}
-            </tbody>
-          </table></div>
-        </div>`).join('')}
-    </div>`;
-}
-function openJadwalForm(id) {
-  const editing = id ? getJadwal().find(x=>x.id===id) : null;
-  const siswas = getSiswa(), tentors = getTentor();
-  const body = `
-    <form>
-      <div class="space-y-3">
-        <div><label class="text-sm font-medium">Siswa *</label>
-          <select name="siswa_id" required class="w-full border rounded-lg px-3 py-2 mt-1">
-            <option value="">— Pilih Siswa —</option>
-            ${siswas.map(s=>`<option value="${s.id}" ${editing?.siswa_id===s.id?'selected':''}>${escapeHtml(s.nama)}</option>`).join('')}
-          </select></div>
-        <div><label class="text-sm font-medium">Tentor *</label>
-          <select name="tentor_id" required class="w-full border rounded-lg px-3 py-2 mt-1">
-            <option value="">— Pilih Tentor —</option>
-            ${tentors.map(t=>`<option value="${t.id}" ${editing?.tentor_id===t.id?'selected':''}>${escapeHtml(t.nama)} (${escapeHtml(t.mapel||'-')})</option>`).join('')}
-          </select></div>
-        <div><label class="text-sm font-medium">Mata Pelajaran</label><input name="mapel" value="${escapeHtml(editing?.mapel||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
-        <div><label class="text-sm font-medium">Hari *</label>
-          <select name="hari" required class="w-full border rounded-lg px-3 py-2 mt-1">
-            ${HARI.map(h=>`<option value="${h}" ${editing?.hari===h?'selected':''}>${h}</option>`).join('')}
-          </select></div>
-        <div class="grid grid-cols-2 gap-3">
-          <div><label class="text-sm font-medium">Jam Mulai</label><input name="jam_mulai" type="time" required value="${editing?.jam_mulai||'15:00'}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
-          <div><label class="text-sm font-medium">Jam Selesai</label><input name="jam_selesai" type="time" required value="${editing?.jam_selesai||'16:30'}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
-        </div>
-        <div class="flex gap-2 pt-2">
-          <button type="button" onclick="closeModal()" class="flex-1 border rounded-lg py-2 hover:bg-gray-50">Batal</button>
-          <button type="submit" class="flex-1 bg-orange-600 text-white rounded-lg py-2 font-semibold hover:bg-orange-700">Simpan</button>
-        </div>
-      </div>
-    </form>`;
-  openModal(editing ? 'Edit Jadwal' : 'Tambah Jadwal', body, (e) => {
-    const f = e.target;
-    const data = {
-      siswa_id: f.siswa_id.value, tentor_id: f.tentor_id.value,
-      mapel: f.mapel.value.trim(), hari: f.hari.value,
-      jam_mulai: f.jam_mulai.value, jam_selesai: f.jam_selesai.value,
-    };
-    const list = getJadwal();
-    if (editing) { const i = list.findIndex(x=>x.id===editing.id); list[i] = { ...list[i], ...data }; }
-    else { list.push({ id:'j'+Date.now(), ...data }); }
-    saveJadwal(list); closeModal(); renderPage();
-  });
-}
-function deleteJadwal(id) { if (!confirm('Hapus jadwal ini?')) return; saveJadwal(getJadwal().filter(x=>x.id!==id)); renderPage(); }
-
-// ================= ABSENSI =================
-function renderAbsensi(role) {
-  const allAbsen = getAbsensi();
-  const siswas = getSiswa().filter(s=>s.aktif);
-  const existing = allAbsen.filter(a => a.tanggal === absensiDate);
-  const statusColor = { hadir:'emerald', izin:'amber', sakit:'blue', alpa:'rose' };
-  const counts = { hadir:0, izin:0, sakit:0, alpa:0 };
-  existing.forEach(a => { if (counts[a.status] !== undefined) counts[a.status]++; });
-  return `
-    <div>
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-        <div><h1 class="text-2xl font-bold">Absensi</h1><p class="text-gray-500 text-sm">Isi kehadiran siswa per tanggal</p></div>
-        <input type="date" value="${absensiDate}" onchange="absensiDate=this.value; renderPage();" class="border rounded-lg px-3 py-2 text-sm self-start" />
-      </div>
-      <div class="grid grid-cols-4 gap-2 mb-4">
-        ${['hadir','izin','sakit','alpa'].map(s=>`
-          <div class="bg-white rounded-lg p-3 border text-center">
-            <div class="text-xs text-gray-500 capitalize">${s}</div>
-            <div class="text-xl font-bold text-${statusColor[s]}-600">${counts[s]}</div>
-          </div>`).join('')}
+      <div class="flex justify-between items-center mb-4">
+        <div><h1 class="text-2xl font-bold">Jadwal Bimbel</h1><p class="text-gray-500 text-sm">${jadwal.length} sesi</p></div>
+        ${role==='admin'?`<button onclick="openJadwalForm()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm">+ Tambah Jadwal</button>`:''}
       </div>
       <div class="bg-white rounded-xl border overflow-hidden">
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead class="bg-gray-50 text-gray-600"><tr>
-              <th class="text-left px-4 py-3">Nama Siswa</th>
-              <th class="text-left px-4 py-3">Kelas</th>
-              <th class="text-center px-4 py-3">Status Kehadiran</th>
-            </tr></thead>
-            <tbody>
-              ${siswas.length===0?'<tr><td colspan="3" class="text-center text-gray-400 py-8">Belum ada siswa aktif.</td></tr>':
-              siswas.map(s=>{
-                const cur = existing.find(a=>a.siswa_id===s.id)?.status;
-                return `<tr class="border-t">
-                  <td class="px-4 py-3 font-medium">${escapeHtml(s.nama)}</td>
-                  <td class="px-4 py-3">${escapeHtml(s.kelas||'-')}</td>
-                  <td class="px-4 py-3">
-                    <div class="flex justify-center gap-1 flex-wrap">
-                      ${['hadir','izin','sakit','alpa'].map(st=>`
-                        <button onclick="setAbsensi('${s.id}','${st}')" class="px-3 py-1 rounded text-xs font-semibold border ${cur===st?`bg-${statusColor[st]}-500 text-white border-${statusColor[st]}-500`:`bg-white text-gray-600 hover:bg-gray-50`} capitalize">${st}</button>
-                      `).join('')}
-                    </div>
-                  </td>
-                </tr>`;
-              }).join('')}
-            </tbody>
-          </table>
-        </div>
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50"><tr><th class="text-left px-4 py-3">Hari</th><th class="text-left px-4 py-3">Jam</th><th class="text-left px-4 py-3">Siswa</th><th class="text-left px-4 py-3">Tentor</th>${role==='admin'?'<th class="text-right px-4 py-3">Aksi</th>':''}</tr></thead>
+          <tbody>
+            ${jadwal.map(j=>{
+              const s = siswas.find(x=>x.id===j.siswa_id)||{};
+              const t = tentors.find(x=>x.id===j.tentor_id)||{};
+              return `<tr class="border-t">
+                <td class="px-4 py-3 font-medium">${j.hari}</td>
+                <td class="px-4 py-3">${j.jam_mulai} - ${j.jam_selesai}</td>
+                <td class="px-4 py-3">${escapeHtml(s.nama||'-')}</td>
+                <td class="px-4 py-3">${escapeHtml(t.nama||'-')}</td>
+                ${role==='admin'?`<td class="px-4 py-3 text-right">
+                  <button onclick="delJadwal('${j.id}')" class="text-red-600 p-1.5"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                </td>`:''}
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
       </div>
-      <div class="mt-4 text-xs text-gray-500">💡 Klik tombol status untuk langsung menyimpan. Data tersimpan otomatis.</div>
+    </div>`;
+}
+function openJadwalForm() {
+  const siswas = getSiswa(), tentors = getTentor();
+  const body = `<form><div class="space-y-3">
+    <div><label class="text-sm">Siswa *</label><select name="siswa_id" required class="w-full border rounded-lg px-3 py-2 mt-1">${siswas.map(s=>`<option value="${s.id}">${escapeHtml(s.nama)}</option>`).join('')}</select></div>
+    <div><label class="text-sm">Tentor *</label><select name="tentor_id" required class="w-full border rounded-lg px-3 py-2 mt-1">${tentors.map(t=>`<option value="${t.id}">${escapeHtml(t.nama)}</option>`).join('')}</select></div>
+    <div><label class="text-sm">Hari *</label><select name="hari" required class="w-full border rounded-lg px-3 py-2 mt-1">${HARI.map(h=>`<option value="${h}">${h}</option>`).join('')}</select></div>
+    <div class="grid grid-cols-2 gap-2"><div><label class="text-sm">Mulai</label><input type="time" name="jam_mulai" required value="15:00" class="w-full border rounded-lg px-3 py-2" /></div><div><label class="text-sm">Selesai</label><input type="time" name="jam_selesai" required value="16:30" class="w-full border rounded-lg px-3 py-2" /></div></div>
+    <button type="submit" class="w-full bg-orange-600 text-white py-2 rounded-lg">Simpan</button>
+  </div></form>`;
+  openModal('Tambah Jadwal', body, (e)=>{
+    const f=e.target; const list=getJadwal();
+    list.push({id:'j'+Date.now(), siswa_id:f.siswa_id.value, tentor_id:f.tentor_id.value, hari:f.hari.value, jam_mulai:f.jam_mulai.value, jam_selesai:f.jam_selesai.value, mapel:'-'});
+    saveJadwal(list);closeModal();renderPage();
+  });
+}
+function delJadwal(id) { if(confirm('Hapus jadwal ini?')){ saveJadwal(getJadwal().filter(x=>x.id!==id)); renderPage(); } }
+
+function renderAbsensi(role) {
+  const allAbsen = getAbsensi(), siswas = getSiswa().filter(s=>s.aktif);
+  const existing = allAbsen.filter(a => a.tanggal === absensiDate);
+  return `
+    <div>
+      <div class="flex justify-between items-center mb-4">
+        <div><h1 class="text-2xl font-bold">Absensi Siswa</h1></div>
+        <input type="date" value="${absensiDate}" onchange="absensiDate=this.value; renderPage();" class="border rounded-lg px-3 py-2 text-sm" />
+      </div>
+      <div class="bg-white rounded-xl border overflow-hidden">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50"><tr><th class="text-left px-4 py-3">Nama</th><th class="text-center px-4 py-3">Status</th></tr></thead>
+          <tbody>
+            ${siswas.map(s=>{
+              const cur = existing.find(a=>a.siswa_id===s.id)?.status;
+              return `<tr class="border-t">
+                <td class="px-4 py-3 font-medium">${escapeHtml(s.nama)}</td>
+                <td class="px-4 py-3 flex justify-center gap-1">
+                  ${['hadir','izin','sakit','alpa'].map(st=>`
+                    <button onclick="setAbsensi('${s.id}','${st}')" class="px-3 py-1 rounded text-xs border ${cur===st?'bg-orange-500 text-white border-orange-500':'bg-white hover:bg-gray-50'} capitalize">${st}</button>
+                  `).join('')}
+                </td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
     </div>`;
 }
 function setAbsensi(siswa_id, status) {
   const all = getAbsensi();
   const i = all.findIndex(a => a.siswa_id===siswa_id && a.tanggal===absensiDate);
   if (i >= 0) all[i].status = status;
-  else all.push({ id:'a'+Date.now()+Math.random(), siswa_id, tanggal:absensiDate, status, oleh:getSession().email });
-  saveAbsensi(all);
-  renderPage();
+  else all.push({ id:'a'+Date.now(), siswa_id, tanggal:absensiDate, status, oleh:getSession().email });
+  saveAbsensi(all); renderPage();
 }
 
-// ================= INVOICE =================
-function renderInvoice(role) {
+// ================= INVOICE (FULL FITUR) =================
+function renderInvoice() {
   const inv = getInvoice();
   const siswas = getSiswa(), tentors = getTentor();
   const list = inv.slice().sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));
@@ -612,7 +784,7 @@ function renderInvoice(role) {
     <div>
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <div><h1 class="text-2xl font-bold">Invoice</h1><p class="text-gray-500 text-sm">${inv.length} invoice total</p></div>
-        <button onclick="openInvoiceForm()" class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 self-start"><i data-lucide="plus" class="w-4 h-4"></i> Buat Invoice</button>
+        <button onclick="openInvoiceForm()" class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 self-start">+ Buat Invoice</button>
       </div>
       <div class="bg-white rounded-xl border overflow-hidden">
         <div class="overflow-x-auto">
@@ -630,7 +802,6 @@ function renderInvoice(role) {
               ${list.length===0?'<tr><td colspan="7" class="text-center text-gray-400 py-8">Belum ada invoice. Klik "Buat Invoice".</td></tr>':
               list.map(i=>{
                 const target = i.jenis==='siswa' ? siswas.find(x=>x.id===i.untuk_id) : tentors.find(x=>x.id===i.untuk_id);
-                const namaTarget = target?.nama || target?.nama_orang_tua || '-';
                 return `<tr class="border-t hover:bg-gray-50">
                   <td class="px-4 py-3 font-mono text-xs">${escapeHtml(i.no_invoice)}</td>
                   <td class="px-4 py-3"><span class="text-xs px-2 py-1 rounded ${i.jenis==='siswa'?'bg-orange-100 text-orange-700':'bg-amber-100 text-amber-700'}">${i.jenis==='siswa'?'Siswa':'Tentor'}</span></td>
@@ -763,7 +934,6 @@ function updateInvoiceTotal() {
 
 function deleteInvoice(id) { if (!confirm('Hapus invoice ini?')) return; saveInvoice(getInvoice().filter(x=>x.id!==id)); renderPage(); }
 
-// ============ INVOICE DETAIL + PRINT + WA ============
 function openInvoiceDetail(id) {
   const inv = getInvoice().find(x=>x.id===id);
   if (!inv) return;
@@ -851,9 +1021,8 @@ function printInvoice(id) {
   setTimeout(() => window.print(), 100);
 }
 
-// ================= LAPORAN =================
-let chartInstance = null;
-function renderLaporan() {
+// ================= LAPORAN KEUANGAN (REAL DATA) =================
+function renderLaporanKeuangan() {
   const inv = getInvoice();
   const now = new Date();
   const bulanKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
@@ -862,27 +1031,16 @@ function renderLaporan() {
   const pengeluaranBulan = invBulan.filter(i=>i.jenis==='tentor').reduce((a,b)=>a+b.total,0);
   const lunas = inv.filter(i=>i.jenis==='siswa' && i.status==='lunas').reduce((a,b)=>a+b.total,0);
   const belum = inv.filter(i=>i.jenis==='siswa' && i.status==='belum_bayar').reduce((a,b)=>a+b.total,0);
+
   return `
     <div>
       <h1 class="text-2xl font-bold mb-1">Laporan Keuangan</h1>
       <p class="text-gray-500 mb-6 text-sm">Ringkasan pemasukan & pengeluaran bimbel</p>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div class="bg-white rounded-xl p-4 border">
-          <div class="text-xs text-gray-500 mb-1">Pemasukan Bulan Ini</div>
-          <div class="text-lg font-bold text-emerald-600">${rupiah(pemasukanBulan)}</div>
-        </div>
-        <div class="bg-white rounded-xl p-4 border">
-          <div class="text-xs text-gray-500 mb-1">Gaji Tentor Bulan Ini</div>
-          <div class="text-lg font-bold text-rose-600">${rupiah(pengeluaranBulan)}</div>
-        </div>
-        <div class="bg-white rounded-xl p-4 border">
-          <div class="text-xs text-gray-500 mb-1">Piutang (Belum Bayar)</div>
-          <div class="text-lg font-bold text-amber-600">${rupiah(belum)}</div>
-        </div>
-        <div class="bg-white rounded-xl p-4 border">
-          <div class="text-xs text-gray-500 mb-1">Total Pemasukan Lunas</div>
-          <div class="text-lg font-bold text-orange-600">${rupiah(lunas)}</div>
-        </div>
+        <div class="bg-white rounded-xl p-4 border"><div class="text-xs text-gray-500 mb-1">Pemasukan Bulan Ini</div><div class="text-lg font-bold text-emerald-600">${rupiah(pemasukanBulan)}</div></div>
+        <div class="bg-white rounded-xl p-4 border"><div class="text-xs text-gray-500 mb-1">Gaji Tentor Bulan Ini</div><div class="text-lg font-bold text-rose-600">${rupiah(pengeluaranBulan)}</div></div>
+        <div class="bg-white rounded-xl p-4 border"><div class="text-xs text-gray-500 mb-1">Piutang (Belum Bayar)</div><div class="text-lg font-bold text-amber-600">${rupiah(belum)}</div></div>
+        <div class="bg-white rounded-xl p-4 border"><div class="text-xs text-gray-500 mb-1">Total Pemasukan Lunas</div><div class="text-lg font-bold text-orange-600">${rupiah(lunas)}</div></div>
       </div>
       <div class="bg-white rounded-xl p-6 border">
         <h2 class="font-semibold mb-4">Grafik 6 Bulan Terakhir</h2>
@@ -891,6 +1049,7 @@ function renderLaporan() {
     </div>`;
 }
 
+let chartInstance = null;
 function mountChart() {
   const canvas = document.getElementById('chart-laporan');
   if (!canvas) return;
@@ -922,10 +1081,16 @@ function mountChart() {
   });
 }
 
-// ================= START =================
 window.addEventListener('DOMContentLoaded', () => {
   lucide.createIcons();
-  if (getSession()) bootApp();
+  if (getSession()) {
+    document.getElementById('login-page').classList.add('hidden');
+    bootApp();
+    document.getElementById('app-page').classList.remove('hidden', 'opacity-0');
+    lucide.createIcons();
+  } else {
+    applyTheme(load(K.theme, 'orange'));
+  }
 });
 </script>
 </body>
