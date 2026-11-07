@@ -624,7 +624,9 @@ function openInvoiceDetail(id) {
   
   const waNumber = formatWa(target?.no_wa || '');
   const waNama = inv.jenis==='siswa' ? (target?.nama_orang_tua||target?.nama||'') : (target?.nama||'');
-  const waMsg = encodeURIComponent(`Halo Bpk/Ibu ${waNama},\n\nBerikut invoice *${inv.no_invoice}* periode *${inv.periode}* dengan total *${rupiah(inv.total)}*.\n\nStatus: ${inv.status==='lunas'?'LUNAS':'BELUM BAYAR'}\n\nTerima kasih 🙏\nJoy Bimbel`);
+  
+  // Pesan WA yang sudah diperbarui dengan info rekening
+  const waMsg = encodeURIComponent(`Halo Bpk/Ibu ${waNama},\n\nBerikut invoice *${inv.no_invoice}* periode *${inv.periode}* dengan total *${rupiah(inv.total)}*.\n\nStatus: ${inv.status==='lunas'?'LUNAS':'BELUM BAYAR'}\n\n*Pembayaran dapat ditransfer ke:*\nBNI: 2079385983\nBCA: 4720524304\nBRI: 180701015922501\na.n. Joice Zhenrike Memmase\n\nTerima kasih 🙏\nJoy Bimbel`);
   const waUrl = `https://wa.me/${waNumber}?text=${waMsg}`;
 
   const body = `
@@ -738,7 +740,7 @@ function renderBackup() {
   return `<div><h1 class="text-2xl font-bold mb-4">Backup Data (CSV)</h1><p class="text-sm text-gray-500">Data tersimpan aman di Supabase Cloud.</p></div>`;
 }
 
-// ================= CRUD SISWA (UPDATED DENGAN NO WA) =================
+// ================= CRUD SISWA =================
 function renderSiswa() {
   const role = DB.profile ? DB.profile.role : 'tentor';
   return `<div>
