@@ -28,14 +28,18 @@
   .spinner { border: 4px solid rgba(255, 255, 255, 0.3); border-top: 4px solid white; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
   @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   
+  @keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .animate-slide-in { animation: slideIn 0.3s ease-out; }
+  .animate-scale-in { animation: scaleIn 0.2s ease-out; }
+  .animate-fade-in { animation: fadeIn 0.2s ease-out; }
+  
   #print-area { display: none; }
   @media print {
     body * { visibility: hidden; }
     #print-area, #print-area * { visibility: visible; }
-    #print-area { 
-      display: block !important; position: absolute; left: 0; top: 0; width: 100%; 
-      padding: 0; margin: 0; background: white; color: black; 
-    }
+    #print-area { display: block !important; position: absolute; left: 0; top: 0; width: 100%; padding: 0; margin: 0; background: white; color: black; }
     @page { margin: 1cm; }
   }
 </style>
@@ -46,10 +50,8 @@
 
 <!-- LOGIN -->
 <div id="login-page" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 p-4">
-  <form id="login-form" class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md transition-all duration-300">
-    <div class="flex justify-center mb-3">
-      <img id="login-logo" src="" alt="Logo" class="h-20 w-20 object-contain hidden" />
-    </div>
+  <form id="login-form" class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+    <div class="flex justify-center mb-3"><img id="login-logo" src="" alt="Logo" class="h-20 w-20 object-contain hidden" /></div>
     <h1 class="text-3xl font-bold text-center mb-2"><span class="text-orange-600">Joy</span> Bimbel</h1>
     <p class="text-center text-gray-500 mb-6 text-sm">Silakan login untuk melanjutkan</p>
     <input name="email" type="email" required placeholder="Email" class="w-full border rounded-lg px-4 py-3 mb-3 focus:outline-none focus:ring-2 focus:ring-orange-500" />
@@ -106,7 +108,7 @@
 <div id="print-area"></div>
 
 <script>
-// ================= ERROR HANDLER GLOBAL =================
+// ================= ERROR HANDLER =================
 window.onerror = function(msg, url, line, col, error) {
   const errDiv = document.getElementById('global-error');
   if (errDiv) {
@@ -123,8 +125,16 @@ let currentPage = 'dashboard';
 let absensiDate = new Date().toISOString().slice(0,10);
 let realtimeChannel = null;
 let refreshTimeout = null;
-let chartInstance = null;
 let LOGO_URL = '';
+
+// Search & filter states
+let searchSiswa = '';
+let searchTentor = '';
+let searchInvoice = '';
+let filterInvoiceStatus = 'all';
+let filterInvoiceJenis = 'all';
+let searchLaporan = '';
+let filterLaporanTentor = 'all';
 
 // ================= HELPERS =================
 function escapeHtml(s) { return String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -132,13 +142,52 @@ function formatWa(n) { n = String(n||'').replace(/\D/g,''); if (n.startsWith('0'
 function rupiah(n) { return 'Rp' + Number(n||0).toLocaleString('id-ID'); }
 function todayISO() { return new Date().toISOString().slice(0,10); }
 const NAMA_BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+const NAMA_HARI = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
 function periodeNow() { const d = new Date(); return `${NAMA_BULAN[d.getMonth()]} ${d.getFullYear()}`; }
 const HARI = ['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'];
 
-// Fungsi untuk memotong detik (jam:menit:detik -> jam:menit)
-function formatJam(t) {
-  if (!t) return '-';
-  return String(t).substring(0, 5);
+function formatJam(t) { if (!t) return '-'; return String(t).substring(0, 5); }
+
+// ================= TOAST & CONFIRM =================
+function showToast(message, type = 'success') {
+  const colors = { success: 'bg-emerald-500', error: 'bg-red-500', info: 'bg-blue-500', warning: 'bg-amber-500' };
+  const icons = { success: 'check-circle', error: 'x-circle', info: 'info', warning: 'alert-triangle' };
+  const toast = document.createElement('div');
+  toast.className = `fixed top-4 right-4 z-[99999] px-4 py-3 rounded-xl shadow-2xl text-white font-medium flex items-center gap-2 max-w-xs animate-slide-in ${colors[type] || colors.success}`;
+  toast.innerHTML = `<i data-lucide="${icons[type] || 'check'}" class="w-5 h-5 flex-shrink-0"></i><span class="text-sm">${escapeHtml(message)}</span>`;
+  document.body.appendChild(toast);
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+  setTimeout(() => {
+    toast.style.transition = 'all 0.3s';
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(120%)';
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
+function showConfirm(title, message, onConfirm, confirmLabel = 'Ya, Lanjutkan', danger = true) {
+  const overlay = document.createElement('div');
+  overlay.className = 'fixed inset-0 bg-black/50 z-[99998] flex items-center justify-center p-4 animate-fade-in';
+  overlay.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-scale-in">
+      <div class="p-6 text-center">
+        <div class="w-14 h-14 mx-auto rounded-full ${danger ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-600'} flex items-center justify-center mb-4">
+          <i data-lucide="${danger ? 'alert-triangle' : 'help-circle'}" class="w-7 h-7"></i>
+        </div>
+        <h3 class="text-lg font-bold mb-2">${escapeHtml(title)}</h3>
+        <p class="text-sm text-gray-600">${escapeHtml(message)}</p>
+      </div>
+      <div class="flex gap-2 p-4 bg-gray-50">
+        <button class="cancel-btn flex-1 bg-white border rounded-lg py-2.5 font-semibold text-gray-700 hover:bg-gray-100">Batal</button>
+        <button class="confirm-btn flex-1 ${danger ? 'bg-red-600 hover:bg-red-700' : 'bg-orange-600 hover:bg-orange-700'} text-white rounded-lg py-2.5 font-semibold">${escapeHtml(confirmLabel)}</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+  overlay.querySelector('.cancel-btn').onclick = () => overlay.remove();
+  overlay.querySelector('.confirm-btn').onclick = () => { overlay.remove(); onConfirm(); };
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 }
 
 // ================= LOGO MANAGEMENT =================
@@ -180,16 +229,14 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
   const btn = document.getElementById('btn-login');
   const btnText = document.getElementById('btn-text');
   btn.disabled = true; btnText.innerHTML = `Memverifikasi...`;
-
   const email = f.email.value.trim();
   const password = f.password.value;
-
   try {
     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
     if (error) throw error;
     await loadAllData(data.user);
   } catch (err) {
-    alert("Login Gagal: " + err.message);
+    showToast("Login gagal: " + err.message, 'error');
     document.getElementById('login-error').classList.remove('hidden');
     btn.disabled = false; btnText.innerText = 'Masuk';
   }
@@ -219,56 +266,48 @@ async function loadAllData(user) {
     DB.siswa = resSiswa.data || []; DB.tentor = resTentor.data || []; DB.jadwal = resJadwal.data || [];
     DB.absensi = resAbsensi.data || []; DB.invoice = resInvoice.data || []; DB.laporan = resLaporan.data || [];
     DB.users = resUsers.data || [];
-    
-    if (resSettings.data) {
-      resSettings.data.forEach(s => DB.settings[s.key] = s.value);
-      if (DB.settings.logo_url) { LOGO_URL = DB.settings.logo_url; }
-    }
+    if (resSettings.data) { resSettings.data.forEach(s => DB.settings[s.key] = s.value); if (DB.settings.logo_url) LOGO_URL = DB.settings.logo_url; }
 
     bootApp();
     
     if (realtimeChannel) await supabaseClient.removeChannel(realtimeChannel);
     realtimeChannel = supabaseClient.channel('custom-all-channel')
-      .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => {
         clearTimeout(refreshTimeout);
         refreshTimeout = setTimeout(() => loadAllData(user), 1000);
       }).subscribe();
-
   } catch (err) {
-    alert("Error Load Data: " + err.message);
+    showToast("Error: " + err.message, 'error');
     await supabaseClient.auth.signOut();
     location.reload();
   }
 }
 
-async function logout() { 
-  if (!confirm('Apakah Anda yakin ingin keluar?')) return; 
-  try {
-    if (realtimeChannel) { await supabaseClient.removeChannel(realtimeChannel); realtimeChannel = null; }
-    await supabaseClient.removeAllChannels();
-    await supabaseClient.auth.signOut(); 
-    location.reload(); 
-  } catch (error) { location.reload(); }
+function logout() { 
+  showConfirm('Logout?', 'Anda akan keluar dari sistem Joy Bimbel.', async () => {
+    try {
+      if (realtimeChannel) await supabaseClient.removeChannel(realtimeChannel);
+      await supabaseClient.removeAllChannels();
+      await supabaseClient.auth.signOut();
+      location.reload();
+    } catch(e) { location.reload(); }
+  }, 'Ya, Logout', false);
 }
 
-// ================= APP ROUTING =================
+// ================= ROUTING =================
 function bootApp() {
   const loadingPage = document.getElementById('loading-page');
   if (loadingPage) loadingPage.classList.add('opacity-0');
-  
   setTimeout(() => {
     if (loadingPage) loadingPage.classList.add('hidden');
     const appPage = document.getElementById('app-page');
     if (appPage) { appPage.classList.remove('hidden'); setTimeout(() => appPage.classList.remove('opacity-0'), 50); }
-    
     applyLogo();
-    
     const sidebarRole = document.getElementById('sidebar-role');
     if (sidebarRole && DB.profile) sidebarRole.textContent = DB.profile.role.toUpperCase() + ' - ' + DB.profile.nama;
     const mobileRole = document.getElementById('mobile-role');
     if (mobileRole && DB.profile) mobileRole.textContent = DB.profile.role;
-    
-    renderNav(); renderPage(); 
+    renderNav(); renderPage();
     if (typeof lucide !== 'undefined') lucide.createIcons();
   }, 400);
 }
@@ -300,7 +339,13 @@ function renderNav() {
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
-function navigate(page) { currentPage = page; renderNav(); renderPage(); if (window.innerWidth < 768) { const sb = document.getElementById('sidebar'); if (sb) { sb.classList.add('hidden','-translate-x-full'); } } }
+function navigate(page) { 
+  currentPage = page; 
+  searchSiswa = ''; searchTentor = ''; searchInvoice = ''; searchLaporan = '';
+  filterInvoiceStatus = 'all'; filterInvoiceJenis = 'all'; filterLaporanTentor = 'all';
+  renderNav(); renderPage(); 
+  if (window.innerWidth < 768) { const sb = document.getElementById('sidebar'); if (sb) sb.classList.add('hidden','-translate-x-full'); }
+}
 function toggleSidebar() { const s = document.getElementById('sidebar'); if (s) { s.classList.toggle('hidden'); s.classList.toggle('-translate-x-full'); } }
 
 // ================= MODAL =================
@@ -324,21 +369,276 @@ function renderPage() {
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
-// ================= PENGATURAN WEBSITE =================
+// ================= DASHBOARD BARU =================
+function renderDashboard() {
+  const s = DB.profile;
+  const isAdmin = s && s.role === 'admin';
+  const today = new Date();
+  const todayName = NAMA_HARI[today.getDay()];
+  const todayDate = today.getDate() + ' ' + NAMA_BULAN[today.getMonth()] + ' ' + today.getFullYear();
+  const myTentorId = getMyTentorId();
+  const tgl = todayISO();
+
+  // Jadwal hari ini
+  let jadwalHariIni = DB.jadwal.filter(j => j.hari === todayName);
+  if (!isAdmin && myTentorId) jadwalHariIni = jadwalHariIni.filter(j => j.tentor_id === myTentorId);
+  jadwalHariIni.sort((a,b) => (a.jam_mulai || '').localeCompare(b.jam_mulai || ''));
+
+  // Belum bayar
+  const belumBayar = DB.invoice.filter(i => i.jenis === 'siswa' && i.status === 'belum_bayar');
+
+  // Belum absen hari ini
+  const sudahAbsenIds = new Set(DB.absensi.filter(a => a.tanggal === tgl).map(a => a.siswa_id));
+  const belumAbsen = DB.siswa.filter(siswa => !sudahAbsenIds.has(siswa.id));
+
+  // Laporan terbaru
+  let recentLaporan = DB.laporan;
+  if (!isAdmin && myTentorId) recentLaporan = recentLaporan.filter(l => l.tentor_id === myTentorId);
+  recentLaporan = recentLaporan.slice(0, 3);
+
+  // Ringkasan bulan
+  const bulanKey = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+  const invBulan = DB.invoice.filter(i => (i.tanggal||'').startsWith(bulanKey));
+  const pemasukanBulan = invBulan.filter(i=>i.jenis==='siswa' && i.status==='lunas').reduce((a,b)=>a+b.total,0);
+  const pengeluaranBulan = invBulan.filter(i=>i.jenis==='tentor' && i.status==='lunas').reduce((a,b)=>a+b.total,0);
+
+  // Stats
+  const totalSiswa = isAdmin ? DB.siswa.length : (myTentorId ? DB.jadwal.filter(j=>j.tentor_id===myTentorId).map(j=>j.siswa_id).filter((v,i,arr)=>arr.indexOf(v)===i).length : 0);
+  const totalTentor = DB.tentor.length;
+  const totalLaporan = isAdmin ? DB.laporan.length : (myTentorId ? DB.laporan.filter(l => l.tentor_id === myTentorId).length : 0);
+
+  return `
+    <div class="space-y-6">
+      <!-- Header -->
+      <div>
+        <h1 class="text-2xl font-bold mb-1">Dashboard ${isAdmin?'Admin':'Tentor'}</h1>
+        <p class="text-gray-500 text-sm">Selamat datang, ${escapeHtml(s.nama)} 👋 — ${todayDate}</p>
+      </div>
+
+      <!-- Stat Cards -->
+      <div class="grid grid-cols-2 ${isAdmin?'md:grid-cols-4':'md:grid-cols-3'} gap-3 md:gap-4">
+        <div class="bg-white rounded-xl p-4 border hover:shadow-md transition">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-gray-500 font-medium">${isAdmin?'Total Siswa':'Siswa Saya'}</span>
+            <div class="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center"><i data-lucide="users" class="w-4 h-4 text-orange-600"></i></div>
+          </div>
+          <div class="text-2xl font-bold">${totalSiswa}</div>
+        </div>
+        ${isAdmin ? `
+        <div class="bg-white rounded-xl p-4 border hover:shadow-md transition">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-gray-500 font-medium">Total Tentor</span>
+            <div class="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center"><i data-lucide="user-cog" class="w-4 h-4 text-emerald-600"></i></div>
+          </div>
+          <div class="text-2xl font-bold">${totalTentor}</div>
+        </div>
+        <div class="bg-white rounded-xl p-4 border hover:shadow-md transition">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-gray-500 font-medium">Pemasukan Bulan Ini</span>
+            <div class="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center"><i data-lucide="wallet" class="w-4 h-4 text-blue-600"></i></div>
+          </div>
+          <div class="text-lg md:text-xl font-bold text-emerald-600 truncate">${rupiah(pemasukanBulan)}</div>
+        </div>` : ''}
+        <div class="bg-white rounded-xl p-4 border hover:shadow-md transition">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-gray-500 font-medium">${isAdmin?'Total Laporan':'Laporan Saya'}</span>
+            <div class="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center"><i data-lucide="file-check" class="w-4 h-4 text-purple-600"></i></div>
+          </div>
+          <div class="text-2xl font-bold">${totalLaporan}</div>
+        </div>
+      </div>
+
+      <!-- 2 Column Layout -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- LEFT (2/3) -->
+        <div class="lg:col-span-2 space-y-6">
+          <!-- Jadwal Hari Ini -->
+          <div class="bg-white rounded-xl border overflow-hidden">
+            <div class="px-5 py-4 border-b flex items-center justify-between bg-gradient-to-r from-orange-50 to-white">
+              <div class="flex items-center gap-2">
+                <i data-lucide="calendar" class="w-5 h-5 text-orange-600"></i>
+                <h2 class="font-bold">Jadwal Hari Ini — ${todayName}</h2>
+              </div>
+              <span class="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-semibold">${jadwalHariIni.length} sesi</span>
+            </div>
+            <div class="p-4">
+              ${jadwalHariIni.length === 0 ? `
+                <div class="text-center py-6">
+                  <i data-lucide="coffee" class="w-10 h-10 text-gray-300 mx-auto mb-2"></i>
+                  <p class="text-sm text-gray-500">Tidak ada jadwal untuk hari ${todayName}.</p>
+                </div>
+              ` : `
+                <div class="space-y-2">
+                  ${jadwalHariIni.map(j => {
+                    const siswa = DB.siswa.find(x=>x.id===j.siswa_id) || {};
+                    const tentor = DB.tentor.find(x=>x.id===j.tentor_id) || {};
+                    const sudahAbsen = sudahAbsenIds.has(j.siswa_id);
+                    return `
+                      <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border ${sudahAbsen?'border-emerald-200 bg-emerald-50/50':''}">
+                        <div class="bg-white rounded-lg px-3 py-2 text-center flex-shrink-0 border">
+                          <div class="text-xs text-gray-500 font-medium">${formatJam(j.jam_mulai)}</div>
+                          <div class="text-xs text-gray-400">${formatJam(j.jam_selesai)}</div>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                          <div class="font-semibold text-sm truncate">${escapeHtml(siswa.nama || '-')}</div>
+                          <div class="text-xs text-gray-500 truncate">Tentor: ${escapeHtml(tentor.nama || '-')}</div>
+                        </div>
+                        ${sudahAbsen 
+                          ? `<span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full font-semibold flex items-center gap-1 flex-shrink-0"><i data-lucide="check" class="w-3 h-3"></i> Absen</span>`
+                          : `<span class="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-semibold flex-shrink-0">Menunggu</span>`}
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              `}
+            </div>
+          </div>
+
+          <!-- Laporan Terbaru -->
+          <div class="bg-white rounded-xl border overflow-hidden">
+            <div class="px-5 py-4 border-b flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <i data-lucide="file-text" class="w-5 h-5 text-orange-600"></i>
+                <h2 class="font-bold">Laporan Terbaru</h2>
+              </div>
+              <button onclick="navigate('laporan_tentor')" class="text-xs text-orange-600 hover:underline font-semibold">Lihat semua →</button>
+            </div>
+            <div class="p-4">
+              ${recentLaporan.length === 0 ? `
+                <div class="text-center py-6">
+                  <i data-lucide="inbox" class="w-10 h-10 text-gray-300 mx-auto mb-2"></i>
+                  <p class="text-sm text-gray-500">Belum ada laporan.</p>
+                </div>
+              ` : `
+                <div class="space-y-3">
+                  ${recentLaporan.map(l => {
+                    const siswa = DB.siswa.find(x=>x.id===l.siswa_id) || {};
+                    const tentor = DB.tentor.find(x=>x.id===l.tentor_id) || {};
+                    return `
+                      <div class="flex gap-3 p-2 hover:bg-gray-50 rounded-lg transition cursor-pointer" onclick="navigate('laporan_tentor')">
+                        ${l.foto ? `<img src="${l.foto}" class="w-16 h-16 rounded-lg object-cover flex-shrink-0" />` : `<div class="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0"><i data-lucide="image" class="w-6 h-6 text-gray-300"></i></div>`}
+                        <div class="flex-1 min-w-0">
+                          <div class="font-semibold text-sm truncate">${escapeHtml(siswa.nama || '-')}</div>
+                          <div class="text-xs text-gray-500">${l.tanggal} • ${escapeHtml(tentor.nama || '-')}</div>
+                          <div class="text-xs text-gray-600 mt-1 line-clamp-2">${escapeHtml(l.catatan || '')}</div>
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              `}
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT (1/3) -->
+        <div class="space-y-6">
+          <!-- Perlu Perhatian (Admin only) -->
+          ${isAdmin ? `
+          <div class="bg-white rounded-xl border overflow-hidden">
+            <div class="px-5 py-4 border-b flex items-center gap-2">
+              <i data-lucide="alert-circle" class="w-5 h-5 text-amber-600"></i>
+              <h2 class="font-bold">Perlu Perhatian</h2>
+            </div>
+            <div class="p-4 space-y-3">
+              <button onclick="navigate('invoice')" class="w-full flex items-center gap-3 p-3 bg-rose-50 hover:bg-rose-100 rounded-lg border border-rose-200 transition text-left">
+                <div class="w-10 h-10 bg-rose-500 rounded-lg flex items-center justify-center flex-shrink-0"><i data-lucide="receipt" class="w-5 h-5 text-white"></i></div>
+                <div class="flex-1 min-w-0">
+                  <div class="text-sm font-semibold">${belumBayar.length} Invoice Belum Bayar</div>
+                  <div class="text-xs text-gray-500">Total: ${rupiah(belumBayar.reduce((a,b)=>a+b.total,0))}</div>
+                </div>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-rose-600 flex-shrink-0"></i>
+              </button>
+              <button onclick="navigate('absensi')" class="w-full flex items-center gap-3 p-3 ${belumAbsen.length > 0 ? 'bg-amber-50 hover:bg-amber-100 border-amber-200' : 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200'} rounded-lg border transition text-left">
+                <div class="w-10 h-10 ${belumAbsen.length > 0 ? 'bg-amber-500' : 'bg-emerald-500'} rounded-lg flex items-center justify-center flex-shrink-0">
+                  <i data-lucide="${belumAbsen.length > 0 ? 'clock' : 'check-circle'}" class="w-5 h-5 text-white"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="text-sm font-semibold">${belumAbsen.length > 0 ? `${belumAbsen.length} Siswa Belum Absen` : 'Semua Sudah Absen'}</div>
+                  <div class="text-xs text-gray-500">Hari ini, ${todayName}</div>
+                </div>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-gray-400 flex-shrink-0"></i>
+              </button>
+            </div>
+          </div>
+          ` : ''}
+
+          <!-- Ringkasan Bulan (Admin only) -->
+          ${isAdmin ? `
+          <div class="bg-white rounded-xl border overflow-hidden">
+            <div class="px-5 py-4 border-b flex items-center gap-2">
+              <i data-lucide="bar-chart-3" class="w-5 h-5 text-blue-600"></i>
+              <h2 class="font-bold">Ringkasan ${NAMA_BULAN[today.getMonth()]}</h2>
+            </div>
+            <div class="p-4 space-y-3">
+              <div class="flex items-center justify-between p-3 bg-emerald-50 rounded-lg">
+                <span class="text-sm text-gray-700">Pemasukan</span>
+                <span class="font-bold text-emerald-600">${rupiah(pemasukanBulan)}</span>
+              </div>
+              <div class="flex items-center justify-between p-3 bg-rose-50 rounded-lg">
+                <span class="text-sm text-gray-700">Pengeluaran</span>
+                <span class="font-bold text-rose-600">${rupiah(pengeluaranBulan)}</span>
+              </div>
+              <div class="flex items-center justify-between p-3 bg-orange-50 rounded-lg border-t-2 border-orange-200">
+                <span class="text-sm font-semibold text-gray-800">Saldo Bersih</span>
+                <span class="font-bold text-orange-600 text-lg">${rupiah(pemasukanBulan - pengeluaranBulan)}</span>
+              </div>
+            </div>
+          </div>
+          ` : ''}
+
+          <!-- Quick Actions -->
+          <div class="bg-white rounded-xl border overflow-hidden">
+            <div class="px-5 py-4 border-b flex items-center gap-2">
+              <i data-lucide="zap" class="w-5 h-5 text-orange-600"></i>
+              <h2 class="font-bold">Aksi Cepat</h2>
+            </div>
+            <div class="p-4 space-y-2">
+              <button onclick="navigate('absensi')" class="w-full flex items-center gap-3 p-2.5 hover:bg-gray-50 rounded-lg transition text-left">
+                <i data-lucide="clipboard-check" class="w-4 h-4 text-orange-600"></i>
+                <span class="text-sm font-medium">Isi Absensi</span>
+              </button>
+              ${isAdmin ? `
+              <button onclick="navigate('invoice'); setTimeout(()=>openInvoiceForm(), 200)" class="w-full flex items-center gap-3 p-2.5 hover:bg-gray-50 rounded-lg transition text-left">
+                <i data-lucide="file-plus" class="w-4 h-4 text-rose-600"></i>
+                <span class="text-sm font-medium">Buat Invoice</span>
+              </button>
+              <button onclick="navigate('siswa'); setTimeout(()=>openSiswaForm(), 200)" class="w-full flex items-center gap-3 p-2.5 hover:bg-gray-50 rounded-lg transition text-left">
+                <i data-lucide="user-plus" class="w-4 h-4 text-emerald-600"></i>
+                <span class="text-sm font-medium">Tambah Siswa</span>
+              </button>` : `
+              <button onclick="navigate('laporan_tentor'); setTimeout(()=>openLaporanForm(), 200)" class="w-full flex items-center gap-3 p-2.5 hover:bg-gray-50 rounded-lg transition text-left">
+                <i data-lucide="file-plus" class="w-4 h-4 text-purple-600"></i>
+                <span class="text-sm font-medium">Buat Laporan</span>
+              </button>`}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ================= HELPER TENTOR ID =================
+function getMyTentorId() {
+  if (!DB.profile || DB.profile.role !== 'tentor') return null;
+  if (DB.profile.tentor_id) return DB.profile.tentor_id;
+  const match = DB.tentor.find(t => t.email === DB.profile.email);
+  return match ? match.id : null;
+}
+
+// ================= PENGATURAN =================
 function renderPengaturan() {
   return `<div>
     <h1 class="text-2xl font-bold mb-1">Pengaturan Website</h1>
     <p class="text-gray-500 mb-6 text-sm">Sesuaikan identitas visual website Anda</p>
-    
     <div class="bg-white rounded-xl border p-6 max-w-2xl">
       <h2 class="font-bold text-lg mb-1 flex items-center gap-2"><i data-lucide="image" class="w-5 h-5 text-orange-600"></i> Logo Website</h2>
       <p class="text-sm text-gray-500 mb-4">Logo akan tampil di halaman login, sidebar, dan tab browser (favicon).</p>
-      
       <div class="flex flex-col sm:flex-row items-center gap-6">
         <div class="w-32 h-32 border-2 border-dashed rounded-xl flex items-center justify-center bg-gray-50 overflow-hidden flex-shrink-0">
           ${LOGO_URL ? `<img src="${LOGO_URL}" class="max-w-full max-h-full object-contain" />` : `<i data-lucide="image" class="w-10 h-10 text-gray-300"></i>`}
         </div>
-        
         <div class="flex-1 w-full">
           <label class="block text-sm font-medium mb-1">Pilih file gambar (PNG / JPG)</label>
           <input type="file" id="logo-input" accept="image/*" class="w-full border rounded-lg px-3 py-2 text-sm mb-3" />
@@ -353,76 +653,37 @@ async function uploadLogo() {
   const input = document.getElementById('logo-input');
   const btn = document.getElementById('btn-upload-logo');
   const file = input.files[0];
-  
-  if (!file) { alert('Pilih file gambar terlebih dahulu!'); return; }
-  if (file.size > 2 * 1024 * 1024) { alert('Ukuran file maksimal 2MB.'); return; }
-
-  btn.disabled = true;
-  btn.textContent = 'Mengupload...';
-
+  if (!file) { showToast('Pilih file gambar terlebih dahulu!', 'warning'); return; }
+  if (file.size > 2 * 1024 * 1024) { showToast('Ukuran file maksimal 2MB.', 'warning'); return; }
+  btn.disabled = true; btn.textContent = 'Mengupload...';
   try {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `logo_${Date.now()}.${fileExt}`;
+    const fileName = `logo_${Date.now()}.${file.name.split('.').pop()}`;
     const { error: uploadErr } = await supabaseClient.storage.from('logo').upload(fileName, file);
     if (uploadErr) throw uploadErr;
-    
     const { data: { publicUrl } } = supabaseClient.storage.from('logo').getPublicUrl(fileName);
     const { error: dbErr } = await supabaseClient.from('settings').upsert({ key: 'logo_url', value: publicUrl });
     if (dbErr) throw dbErr;
-    
-    LOGO_URL = publicUrl;
-    applyLogo();
-    alert('✅ Logo berhasil diperbarui!');
+    LOGO_URL = publicUrl; applyLogo();
+    showToast('Logo berhasil diperbarui!', 'success');
     renderPage();
   } catch (err) {
-    alert('Gagal upload logo: ' + err.message);
-    btn.disabled = false;
-    btn.textContent = 'Upload Logo';
+    showToast('Gagal upload logo: ' + err.message, 'error');
+    btn.disabled = false; btn.textContent = 'Upload Logo';
   }
 }
 
-// ================= FUNGSI BANTUAN: ID TENTOR =================
-function getMyTentorId() {
-  if (DB.profile.role !== 'tentor') return null;
-  if (DB.profile.tentor_id) return DB.profile.tentor_id;
-  const match = DB.tentor.find(t => t.email === DB.profile.email);
-  return match ? match.id : null;
-}
-
-// ================= DASHBOARD =================
-function renderDashboard() {
-  const s = DB.profile; const siswa = DB.siswa, tentor = DB.tentor, inv = DB.invoice;
-  const pemasukan = inv.filter(i=>i.jenis==='siswa' && i.status==='lunas').reduce((a,b)=>a+b.total,0);
-  const pemasukanCard = s && s.role === 'admin' ? `<div class="bg-white rounded-xl p-4 border"><div class="text-xs text-gray-500 mb-2">Pemasukan Lunas</div><div class="text-xl font-bold text-emerald-600">${rupiah(pemasukan)}</div></div>` : '';
-  return `
-    <div>
-      <h1 class="text-2xl font-bold mb-1">Dashboard ${s && s.role==='admin'?'Admin':'Tentor'}</h1>
-      <p class="text-gray-500 mb-6 text-sm">Selamat datang, ${s ? escapeHtml(s.nama) : ''} 👋</p>
-      <div class="grid grid-cols-2 ${s && s.role==='admin'?'md:grid-cols-4':'md:grid-cols-3'} gap-4 mb-6">
-        <div class="bg-white rounded-xl p-4 border"><div class="text-xs text-gray-500 mb-2">Total Siswa</div><div class="text-xl font-bold">${siswa.length}</div></div>
-        <div class="bg-white rounded-xl p-4 border"><div class="text-xs text-gray-500 mb-2">Total Tentor</div><div class="text-xl font-bold">${tentor.length}</div></div>
-        ${pemasukanCard}
-        <div class="bg-white rounded-xl p-4 border"><div class="text-xs text-gray-500 mb-2">Total Laporan</div><div class="text-xl font-bold text-orange-600">${DB.laporan.length}</div></div>
-      </div>
-    </div>`;
-}
-
-// ================= BACKUP DATA =================
+// ================= BACKUP =================
 function renderBackup() {
   return `<div>
     <h1 class="text-2xl font-bold mb-1">Backup Data</h1>
     <p class="text-gray-500 mb-6 text-sm">Unduh data bimbel Anda sebagai cadangan</p>
-    
     <div class="bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl p-6 text-white mb-6">
       <h2 class="font-bold text-lg mb-2 flex items-center gap-2"><i data-lucide="download-cloud" class="w-5 h-5"></i> Backup Semua Data</h2>
-      <p class="text-sm text-orange-100 mb-4">Unduh seluruh data (siswa, tentor, jadwal, absensi, invoice, laporan) dalam satu file JSON. Cocok untuk arsip lengkap.</p>
-      <button onclick="downloadAllBackup()" class="bg-white text-orange-600 px-5 py-2.5 rounded-lg font-semibold hover:bg-orange-50 transition shadow-md">
-        📦 Download Semua (JSON)
-      </button>
+      <p class="text-sm text-orange-100 mb-4">Unduh seluruh data dalam satu file JSON.</p>
+      <button onclick="downloadAllBackup()" class="bg-white text-orange-600 px-5 py-2.5 rounded-lg font-semibold hover:bg-orange-50 transition shadow-md">📦 Download Semua (JSON)</button>
     </div>
-    
     <h2 class="font-bold text-lg mb-3 flex items-center gap-2"><i data-lucide="table" class="w-5 h-5 text-gray-600"></i> Download per Tabel (CSV)</h2>
-    <p class="text-sm text-gray-500 mb-4">Format CSV bisa langsung dibuka di Microsoft Excel atau Google Sheets.</p>
+    <p class="text-sm text-gray-500 mb-4">Format CSV bisa langsung dibuka di Excel atau Google Sheets.</p>
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       ${backupCard('siswa', 'Data Siswa', 'users', 'blue', DB.siswa.length)}
       ${backupCard('tentor', 'Data Tentor', 'user-cog', 'emerald', DB.tentor.length)}
@@ -431,104 +692,59 @@ function renderBackup() {
       ${backupCard('invoice', 'Invoice & Slip Gaji', 'file-text', 'rose', DB.invoice.length)}
       ${backupCard('laporan', 'Laporan Mengajar', 'file-check', 'indigo', DB.laporan.length)}
     </div>
-    
-    <div class="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
-      <div class="flex items-start gap-3">
-        <i data-lucide="info" class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5"></i>
-        <div class="text-sm text-blue-800">
-          <p class="font-semibold mb-1">Tips Backup:</p>
-          <ul class="list-disc list-inside space-y-1 text-blue-700">
-            <li>Lakukan backup rutin setiap minggu (misal setiap Sabtu malam).</li>
-            <li>Simpan file backup di <b>2 tempat</b>, contoh: laptop + Google Drive.</li>
-            <li>File CSV bisa dibuka dengan Excel/Google Sheets untuk diperiksa.</li>
-            <li>File JSON lebih lengkap (termasuk relasi antar tabel).</li>
-          </ul>
-        </div>
-      </div>
-    </div>
   </div>`;
 }
 
 function backupCard(table, label, icon, color, count) {
-  return `
-    <div class="bg-white rounded-xl border p-4 hover:shadow-md transition">
-      <div class="flex items-center gap-3 mb-3">
-        <div class="bg-${color}-100 text-${color}-600 p-2 rounded-lg"><i data-lucide="${icon}" class="w-5 h-5"></i></div>
-        <div class="flex-1 min-w-0">
-          <div class="font-semibold text-sm truncate">${label}</div>
-          <div class="text-xs text-gray-500">${count} data</div>
-        </div>
-      </div>
-      <button onclick="downloadCSV('${table}')" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm py-2 rounded-lg font-semibold transition flex items-center justify-center gap-2">
-        <i data-lucide="download" class="w-4 h-4"></i> Download CSV
-      </button>
+  return `<div class="bg-white rounded-xl border p-4 hover:shadow-md transition">
+    <div class="flex items-center gap-3 mb-3">
+      <div class="bg-${color}-100 text-${color}-600 p-2 rounded-lg"><i data-lucide="${icon}" class="w-5 h-5"></i></div>
+      <div class="flex-1 min-w-0"><div class="font-semibold text-sm truncate">${label}</div><div class="text-xs text-gray-500">${count} data</div></div>
     </div>
-  `;
+    <button onclick="downloadCSV('${table}')" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm py-2 rounded-lg font-semibold transition flex items-center justify-center gap-2"><i data-lucide="download" class="w-4 h-4"></i> Download CSV</button>
+  </div>`;
 }
 
 function downloadCSV(table) {
   const data = DB[table] || [];
-  if (data.length === 0) { alert(`Tidak ada data ${table} untuk diunduh.`); return; }
-
+  if (data.length === 0) { showToast(`Tidak ada data ${table} untuk diunduh.`, 'warning'); return; }
   const allKeys = [...new Set(data.flatMap(obj => Object.keys(obj)))];
-  const csvRows = [];
-  csvRows.push(allKeys.map(h => `"${h}"`).join(','));
-  
+  const csvRows = [allKeys.map(h => `"${h}"`).join(',')];
   data.forEach(row => {
-    const values = allKeys.map(h => {
+    csvRows.push(allKeys.map(h => {
       let val = row[h];
       if (val === null || val === undefined) val = '';
       if (typeof val === 'object') val = JSON.stringify(val);
       return `"${String(val).replace(/"/g, '""')}"`;
-    });
-    csvRows.push(values.join(','));
+    }).join(','));
   });
-
-  const csvContent = '\uFEFF' + csvRows.join('\n');
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob(['\uFEFF' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
-  const date = new Date().toISOString().slice(0,10);
-  link.download = `JoyBimbel_${table}_${date}.csv`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  link.download = `JoyBimbel_${table}_${todayISO()}.csv`;
+  document.body.appendChild(link); link.click(); document.body.removeChild(link);
+  showToast(`File ${table} berhasil diunduh`, 'success');
 }
 
 function downloadAllBackup() {
-  const backup = {
-    exported_at: new Date().toISOString(),
-    version: '1.0',
-    app: 'Joy Bimbel',
-    data: {
-      siswa: DB.siswa,
-      tentor: DB.tentor,
-      jadwal: DB.jadwal,
-      absensi: DB.absensi,
-      invoice: DB.invoice,
-      laporan: DB.laporan,
-      settings: DB.settings
-    }
+  const backup = { exported_at: new Date().toISOString(), version: '1.0', app: 'Joy Bimbel',
+    data: { siswa: DB.siswa, tentor: DB.tentor, jadwal: DB.jadwal, absensi: DB.absensi, invoice: DB.invoice, laporan: DB.laporan, settings: DB.settings }
   };
-
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
-  const date = new Date().toISOString().slice(0,10);
-  link.download = `JoyBimbel_BackupLengkap_${date}.json`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  link.download = `JoyBimbel_BackupLengkap_${todayISO()}.json`;
+  document.body.appendChild(link); link.click(); document.body.removeChild(link);
+  showToast('Backup lengkap berhasil diunduh', 'success');
 }
 
 // ================= AKUN & AKSES =================
 function renderAkun() {
   return `<div>
     <div class="flex justify-between items-center mb-4">
-      <div><h1 class="text-2xl font-bold">Akun & Akses</h1><p class="text-gray-500 text-sm">Kelola user yang bisa login</p></div>
+      <div><h1 class="text-2xl font-bold">Akun & Akses</h1><p class="text-gray-500 text-sm">${DB.users.length} user terdaftar</p></div>
       <button onclick="openUserForm()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Tambah</button>
     </div>
-    
     <div class="md:hidden space-y-3">
       ${DB.users.map(u=>`
         <div class="bg-white rounded-xl border p-4">
@@ -543,16 +759,14 @@ function renderAkun() {
           <div class="flex gap-2 pt-3 border-t mt-2">
             <button onclick="resetPass('${u.email}')" class="flex-1 text-blue-600 bg-blue-50 py-2 rounded-lg text-xs font-semibold border border-blue-200">Reset Pass</button>
             <button onclick="hapusAkun('${u.email}', '${u.nama}')" class="text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-200"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-          </div>` : `<div class="text-xs text-gray-400 pt-2 border-t mt-2">Admin Utama (Tidak bisa dihapus)</div>`}
-        </div>
-      `).join('')}
+          </div>` : `<div class="text-xs text-gray-400 pt-2 border-t mt-2">Admin Utama</div>`}
+        </div>`).join('')}
     </div>
-    
     <div class="hidden md:block bg-white rounded-xl border overflow-hidden">
       <table class="w-full text-sm">
         <thead class="bg-gray-50"><tr><th class="text-left px-4 py-3">Nama</th><th class="text-left px-4 py-3">Email</th><th class="text-left px-4 py-3">Role</th><th class="text-right px-4 py-3">Aksi</th></tr></thead>
         <tbody>${DB.users.map(u=>`
-          <tr class="border-t">
+          <tr class="border-t hover:bg-gray-50">
             <td class="px-4 py-3 font-medium">${escapeHtml(u.nama)}</td>
             <td class="px-4 py-3">${escapeHtml(u.email)}</td>
             <td class="px-4 py-3"><span class="px-2 py-1 text-xs rounded ${u.role==='admin'?'bg-rose-100 text-rose-700':'bg-emerald-100 text-emerald-700'}">${u.role}</span></td>
@@ -575,10 +789,7 @@ function openUserForm() {
       <div><label class="text-sm">Email *</label><input name="email" type="email" required class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
       <div><label class="text-sm">Password Awal *</label><input name="password" required class="w-full border rounded-lg px-3 py-2 mt-1" placeholder="Minimal 6 karakter" /></div>
       <div><label class="text-sm">Role *</label>
-        <select name="role" class="w-full border rounded-lg px-3 py-2 mt-1">
-          <option value="tentor">Tentor</option>
-          <option value="admin">Admin</option>
-        </select>
+        <select name="role" class="w-full border rounded-lg px-3 py-2 mt-1"><option value="tentor">Tentor</option><option value="admin">Admin</option></select>
       </div>
       <button type="submit" class="w-full bg-orange-600 text-white py-2 rounded-lg font-semibold mt-4">Buat Akun</button>
     </div></form>`;
@@ -588,73 +799,92 @@ function openUserForm() {
 async function simpanUser(e) {
   e.preventDefault();
   const f = e.target;
-  const email = f.email.value.trim();
-  const pass = f.password.value;
-  const nama = f.nama.value;
-  const role = f.role.value;
   const tempClient = supabase.createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false, autoRefreshToken: false } });
-
   try {
     const { data, error } = await tempClient.auth.signUp({ 
-      email, password: pass,
-      options: { data: { nama: nama, role: role } }
+      email: f.email.value.trim(), password: f.password.value,
+      options: { data: { nama: f.nama.value, role: f.role.value } }
     });
     if (error) throw error;
-    alert("✅ Akun berhasil dibuat!");
+    showToast('Akun berhasil dibuat!', 'success');
     closeModal();
-    loadAllData({ id: DB.profile.id }); 
-  } catch (err) { alert("Gagal membuat akun: " + err.message); }
+    loadAllData({ id: DB.profile.id });
+  } catch (err) { showToast("Gagal: " + err.message, 'error'); }
 }
 
 async function resetPass(email) {
   const newPass = prompt(`Masukkan password baru untuk akun ${email}:\n(Minimal 6 karakter)`);
   if (!newPass) return;
-  if (newPass.length < 6) { alert('Password terlalu pendek! Minimal 6 karakter.'); return; }
+  if (newPass.length < 6) { showToast('Password terlalu pendek! Minimal 6 karakter.', 'warning'); return; }
   try {
     const { error } = await supabaseClient.rpc('admin_reset_password', { user_email: email, new_password: newPass });
     if (error) throw error;
-    alert(`✅ Password untuk ${email} berhasil diubah menjadi: ${newPass}`);
-  } catch (err) { alert("Gagal mereset password: " + err.message); }
+    showToast(`Password ${email} diubah menjadi: ${newPass}`, 'success');
+  } catch (err) { showToast("Gagal: " + err.message, 'error'); }
 }
 
 async function hapusAkun(email, nama) {
-  if (!confirm(`Yakin ingin menghapus akun ${nama} (${email}) secara permanen?`)) return;
-  try {
-    const { error } = await supabaseClient.rpc('delete_user_by_admin', { user_email: email });
-    if (error) throw error;
-    alert(`✅ Akun ${nama} berhasil dihapus permanen.`);
-    loadAllData({ id: DB.profile.id }); 
-  } catch (err) { alert("Gagal menghapus akun: " + err.message); }
+  showConfirm('Hapus Akun?', `Yakin ingin menghapus akun "${nama}" (${email}) secara permanen?`, async () => {
+    try {
+      const { error } = await supabaseClient.rpc('delete_user_by_admin', { user_email: email });
+      if (error) throw error;
+      showToast(`Akun ${nama} berhasil dihapus`, 'success');
+      loadAllData({ id: DB.profile.id });
+    } catch (err) { showToast("Gagal: " + err.message, 'error'); }
+  });
 }
 
-// ================= LAPORAN TENTOR =================
+// ================= LAPORAN TENTOR (dengan filter) =================
 function renderLaporanTentor() {
-  const role = DB.profile ? DB.profile.role : 'tentor';
+  const role = DB.profile?.role || 'tentor';
   const myTentorId = getMyTentorId();
-  let list = [];
-  if (role === 'admin') { list = DB.laporan; }
-  else if (role === 'tentor') { list = myTentorId ? DB.laporan.filter(l => l.tentor_id === myTentorId) : []; }
+  let baseList = [];
+  if (role === 'admin') baseList = DB.laporan;
+  else if (role === 'tentor' && myTentorId) baseList = DB.laporan.filter(l => l.tentor_id === myTentorId);
+
+  const q = (searchLaporan || '').toLowerCase();
+  const filtered = baseList.filter(l => {
+    const s = DB.siswa.find(x=>x.id===l.siswa_id) || {};
+    const t = DB.tentor.find(x=>x.id===l.tentor_id) || {};
+    const matchesSearch = !q || (l.catatan||'').toLowerCase().includes(q) || (s.nama||'').toLowerCase().includes(q) || (t.nama||'').toLowerCase().includes(q);
+    const matchesTentor = filterLaporanTentor === 'all' || l.tentor_id === filterLaporanTentor;
+    return matchesSearch && matchesTentor;
+  });
 
   return `<div>
-    <div class="flex justify-between items-center mb-4">
-      <h1 class="text-2xl font-bold">Laporan Mengajar</h1>
-      ${role==='tentor'?`<button onclick="openLaporanForm()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Buat</button>`:''}
+    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+      <div><h1 class="text-2xl font-bold">Laporan Mengajar</h1><p class="text-gray-500 text-sm">${filtered.length} dari ${baseList.length} laporan</p></div>
+      ${role==='tentor'?`<button onclick="openLaporanForm()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold self-start">+ Buat</button>`:''}
     </div>
-    ${list.length === 0 ? '<div class="text-center text-gray-400 py-8 bg-white border rounded-xl">Belum ada laporan.</div>' : 
+    
+    <!-- Search & Filter -->
+    <div class="bg-white rounded-xl border p-3 mb-4 flex flex-col sm:flex-row gap-2">
+      <div class="flex-1 relative">
+        <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+        <input oninput="searchLaporan=this.value; renderPage();" value="${escapeHtml(searchLaporan)}" placeholder="Cari siswa, tentor, atau catatan..." class="w-full border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
+      </div>
+      ${role === 'admin' ? `
+      <select onchange="filterLaporanTentor=this.value; renderPage();" class="border rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-500">
+        <option value="all" ${filterLaporanTentor==='all'?'selected':''}>Semua Tentor</option>
+        ${DB.tentor.map(t => `<option value="${t.id}" ${filterLaporanTentor===t.id?'selected':''}>${escapeHtml(t.nama)}</option>`).join('')}
+      </select>` : ''}
+    </div>
+
+    ${filtered.length === 0 ? `<div class="text-center text-gray-400 py-12 bg-white border rounded-xl"><i data-lucide="search" class="w-10 h-10 mx-auto mb-2 text-gray-300"></i><p>Tidak ada laporan yang cocok.</p></div>` : 
     `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      ${list.map(l=>{ 
+      ${filtered.map(l=>{ 
         const s = DB.siswa.find(x=>x.id===l.siswa_id)||{}; 
         const t = DB.tentor.find(x=>x.id===l.tentor_id)||{}; 
-        return `<div class="bg-white rounded-xl border overflow-hidden flex flex-col relative">
+        return `<div class="bg-white rounded-xl border overflow-hidden flex flex-col relative hover:shadow-md transition">
           ${l.foto?`<img src="${l.foto}" class="w-full h-48 object-cover border-b" />`:''}
           <div class="p-4 flex-1 pb-12">
-            <div class="font-bold text-lg">${escapeHtml(s.nama)}</div>
-            <div class="text-xs text-gray-500 mb-2">${l.tanggal} • ${escapeHtml(t.nama)}</div>
-            <p class="text-sm text-gray-700">${escapeHtml(l.catatan)}</p>
+            <div class="font-bold text-lg">${escapeHtml(s.nama || '-')}</div>
+            <div class="text-xs text-gray-500 mb-2">${l.tanggal} • ${escapeHtml(t.nama || '-')}</div>
+            <p class="text-sm text-gray-700 line-clamp-3">${escapeHtml(l.catatan || '')}</p>
           </div>
           <div class="absolute bottom-3 right-3 flex gap-1 bg-white p-1 rounded-lg shadow-sm border">
             <button onclick="openLaporanForm('${l.id}')" class="text-blue-600 p-2 hover:bg-blue-50 rounded"><i data-lucide="pencil" class="w-4 h-4"></i></button>
-            <button onclick="hapusLaporan('${l.id}')" class="text-red-600 p-2 hover:bg-red-50 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+            <button onclick="deleteRecord('laporan','${l.id}','laporan ${l.tanggal}')" class="text-red-600 p-2 hover:bg-red-50 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
           </div>
         </div>`; 
       }).join('')}
@@ -683,12 +913,12 @@ function openLaporanForm(id) {
   openModal(editing ? 'Edit Laporan' : 'Buat Laporan', body, async (e) => {
     const f = e.target; 
     const file = document.getElementById('foto-input').files[0];
-    if (!file && !editing) { alert('Pilih foto terlebih dahulu!'); return; }
+    if (!file && !editing) { showToast('Pilih foto terlebih dahulu!', 'warning'); return; }
     let fotoUrl = editing ? editing.foto : null;
     if (file) {
       const fileName = `laporan/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
       const { error: err } = await supabaseClient.storage.from('foto_laporan').upload(fileName, file);
-      if (err) { alert("Gagal upload foto: " + err.message); return; }
+      if (err) { showToast("Gagal upload foto: " + err.message, 'error'); return; }
       const { data: { publicUrl } } = supabaseClient.storage.from('foto_laporan').getPublicUrl(fileName);
       fotoUrl = publicUrl;
     }
@@ -696,63 +926,84 @@ function openLaporanForm(id) {
     const data = { tentor_id: editing ? editing.tentor_id : myTentorId, siswa_id: f.siswa_id.value, tanggal: f.tanggal.value, mapel: f.mapel.value, catatan: f.catatan.value, foto: fotoUrl };
     if (editing) { await supabaseClient.from('laporan').update(data).eq('id', editing.id); }
     else { await supabaseClient.from('laporan').insert([data]); }
+    showToast(editing ? 'Laporan diperbarui' : 'Laporan tersimpan', 'success');
     closeModal();
   });
 }
 
-async function hapusLaporan(id) {
-  if (!confirm('Yakin ingin menghapus laporan ini?')) return;
-  await supabaseClient.from('laporan').delete().eq('id', id);
-}
-
-// ================= INVOICE =================
+// ================= INVOICE (dengan filter) =================
 function renderInvoice() {
-  const inv = DB.invoice;
-  const siswas = DB.siswa, tentors = DB.tentor;
+  const q = (searchInvoice || '').toLowerCase();
+  const filtered = DB.invoice.filter(i => {
+    const target = i.jenis==='siswa' ? DB.siswa.find(x=>x.id===i.untuk_id) : DB.tentor.find(x=>x.id===i.untuk_id);
+    const matchesSearch = !q || (i.no_invoice||'').toLowerCase().includes(q) || (target?.nama||'').toLowerCase().includes(q);
+    const matchesStatus = filterInvoiceStatus === 'all' || i.status === filterInvoiceStatus;
+    const matchesJenis = filterInvoiceJenis === 'all' || i.jenis === filterInvoiceJenis;
+    return matchesSearch && matchesStatus && matchesJenis;
+  });
+
   return `<div>
-    <div class="flex justify-between items-center mb-4">
-      <div><h1 class="text-2xl font-bold">Invoice & Slip Gaji</h1><p class="text-gray-500 text-sm">${inv.length} total data</p></div>
-      <button onclick="openInvoiceForm()" class="bg-rose-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Buat</button>
+    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+      <div><h1 class="text-2xl font-bold">Invoice & Slip Gaji</h1><p class="text-gray-500 text-sm">${filtered.length} dari ${DB.invoice.length} data</p></div>
+      <button onclick="openInvoiceForm()" class="bg-rose-600 text-white px-4 py-2 rounded-lg text-sm font-semibold self-start">+ Buat</button>
     </div>
     
-    <div class="md:hidden space-y-3">
-      ${inv.length === 0 ? '<div class="text-center text-gray-400 py-8 bg-white border rounded-xl">Belum ada data.</div>' : 
-      inv.map(i=>{
-        const target = i.jenis==='siswa' ? siswas.find(x=>x.id===i.untuk_id) : tentors.find(x=>x.id===i.untuk_id);
-        return `<div class="bg-white rounded-xl border p-4">
-          <div class="flex justify-between items-start mb-2">
-            <div class="flex-1 min-w-0">
-              <div class="font-mono text-xs text-gray-500 mb-1">${escapeHtml(i.no_invoice)}</div>
-              <div class="font-bold truncate">${escapeHtml(target?.nama||'-')}</div>
+    <!-- Search & Filter -->
+    <div class="bg-white rounded-xl border p-3 mb-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
+      <div class="relative">
+        <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+        <input oninput="searchInvoice=this.value; renderPage();" value="${escapeHtml(searchInvoice)}" placeholder="Cari no invoice / nama..." class="w-full border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
+      </div>
+      <select onchange="filterInvoiceJenis=this.value; renderPage();" class="border rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-500">
+        <option value="all" ${filterInvoiceJenis==='all'?'selected':''}>Semua Jenis</option>
+        <option value="siswa" ${filterInvoiceJenis==='siswa'?'selected':''}>Siswa</option>
+        <option value="tentor" ${filterInvoiceJenis==='tentor'?'selected':''}>Tentor</option>
+      </select>
+      <select onchange="filterInvoiceStatus=this.value; renderPage();" class="border rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-500">
+        <option value="all" ${filterInvoiceStatus==='all'?'selected':''}>Semua Status</option>
+        <option value="belum_bayar" ${filterInvoiceStatus==='belum_bayar'?'selected':''}>Belum Bayar</option>
+        <option value="lunas" ${filterInvoiceStatus==='lunas'?'selected':''}>Lunas</option>
+      </select>
+    </div>
+
+    ${filtered.length === 0 ? `<div class="text-center text-gray-400 py-12 bg-white border rounded-xl"><i data-lucide="search" class="w-10 h-10 mx-auto mb-2 text-gray-300"></i><p>Tidak ada invoice yang cocok.</p></div>` :
+    `<>
+      <!-- Mobile -->
+      <div class="md:hidden space-y-3">
+        ${filtered.map(i => {
+          const target = i.jenis==='siswa' ? DB.siswa.find(x=>x.id===i.untuk_id) : DB.tentor.find(x=>x.id===i.untuk_id);
+          return `<div class="bg-white rounded-xl border p-4">
+            <div class="flex justify-between items-start mb-2">
+              <div class="flex-1 min-w-0">
+                <div class="font-mono text-xs text-gray-500 mb-1">${escapeHtml(i.no_invoice)}</div>
+                <div class="font-bold truncate">${escapeHtml(target?.nama||'-')}</div>
+              </div>
+              <span class="text-xs px-2 py-1 rounded flex-shrink-0 ${i.jenis==='siswa'?'bg-orange-100 text-orange-700':'bg-amber-100 text-amber-700'}">${i.jenis==='siswa'?'Siswa':'Tentor'}</span>
             </div>
-            <span class="text-xs px-2 py-1 rounded flex-shrink-0 ${i.jenis==='siswa'?'bg-orange-100 text-orange-700':'bg-amber-100 text-amber-700'}">${i.jenis==='siswa'?'Siswa':'Tentor'}</span>
-          </div>
-          <div class="text-sm space-y-1 py-2 border-t">
-            <div class="flex justify-between"><span class="text-gray-500">Periode:</span><span>${escapeHtml(i.periode||'-')}</span></div>
-            <div class="flex justify-between"><span class="text-gray-500">Total:</span><span class="font-bold text-orange-600">${rupiah(i.total)}</span></div>
-            <div class="flex justify-between"><span class="text-gray-500">Status:</span><span class="text-xs px-2 py-0.5 rounded ${i.status==='lunas'?'bg-emerald-100 text-emerald-700':'bg-rose-100 text-rose-700'}">${i.status==='lunas'?'Lunas':'Belum Bayar'}</span></div>
-          </div>
-          <div class="flex gap-2 pt-3 border-t mt-2">
-            <button onclick="openInvoiceDetail('${i.id}')" class="flex-1 text-orange-600 bg-orange-50 py-2 rounded-lg text-xs font-semibold border border-orange-200 flex items-center justify-center gap-1"><i data-lucide="eye" class="w-3 h-3"></i> Lihat</button>
-            <button onclick="openInvoiceForm('${i.id}')" class="text-blue-600 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200"><i data-lucide="pencil" class="w-4 h-4"></i></button>
-            <button onclick="deleteRecord('invoice','${i.id}')" class="text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-200"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-          </div>
-        </div>`;
-      }).join('')}
-    </div>
-    
-    <div class="hidden md:block bg-white rounded-xl border overflow-hidden">
-      <table class="w-full text-sm">
-        <thead class="bg-gray-50 text-gray-600"><tr>
-          <th class="text-left px-4 py-3">No Dokumen</th><th class="text-left px-4 py-3">Jenis</th>
-          <th class="text-left px-4 py-3">Penerima</th><th class="text-left px-4 py-3">Periode</th>
-          <th class="text-left px-4 py-3">Total</th><th class="text-left px-4 py-3">Status</th>
-          <th class="text-right px-4 py-3">Aksi</th>
-        </tr></thead>
-        <tbody>
-          ${inv.length===0?'<tr><td colspan="7" class="text-center text-gray-400 py-8">Belum ada data.</td></tr>':
-          inv.map(i=>{
-            const target = i.jenis==='siswa' ? siswas.find(x=>x.id===i.untuk_id) : tentors.find(x=>x.id===i.untuk_id);
+            <div class="text-sm space-y-1 py-2 border-t">
+              <div class="flex justify-between"><span class="text-gray-500">Periode:</span><span>${escapeHtml(i.periode||'-')}</span></div>
+              <div class="flex justify-between"><span class="text-gray-500">Total:</span><span class="font-bold text-orange-600">${rupiah(i.total)}</span></div>
+              <div class="flex justify-between"><span class="text-gray-500">Status:</span><span class="text-xs px-2 py-0.5 rounded ${i.status==='lunas'?'bg-emerald-100 text-emerald-700':'bg-rose-100 text-rose-700'}">${i.status==='lunas'?'Lunas':'Belum Bayar'}</span></div>
+            </div>
+            <div class="flex gap-2 pt-3 border-t mt-2">
+              <button onclick="openInvoiceDetail('${i.id}')" class="flex-1 text-orange-600 bg-orange-50 py-2 rounded-lg text-xs font-semibold border border-orange-200 flex items-center justify-center gap-1"><i data-lucide="eye" class="w-3 h-3"></i> Lihat</button>
+              <button onclick="openInvoiceForm('${i.id}')" class="text-blue-600 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+              <button onclick="deleteRecord('invoice','${i.id}','${i.no_invoice}')" class="text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-200"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+      <!-- Desktop -->
+      <div class="hidden md:block bg-white rounded-xl border overflow-hidden">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 text-gray-600"><tr>
+            <th class="text-left px-4 py-3">No Dokumen</th><th class="text-left px-4 py-3">Jenis</th>
+            <th class="text-left px-4 py-3">Penerima</th><th class="text-left px-4 py-3">Periode</th>
+            <th class="text-left px-4 py-3">Total</th><th class="text-left px-4 py-3">Status</th>
+            <th class="text-right px-4 py-3">Aksi</th>
+          </tr></thead>
+          <tbody>${filtered.map(i=>{
+            const target = i.jenis==='siswa' ? DB.siswa.find(x=>x.id===i.untuk_id) : DB.tentor.find(x=>x.id===i.untuk_id);
             return `<tr class="border-t hover:bg-gray-50">
               <td class="px-4 py-3 font-mono text-xs">${escapeHtml(i.no_invoice)}</td>
               <td class="px-4 py-3"><span class="text-xs px-2 py-1 rounded ${i.jenis==='siswa'?'bg-orange-100 text-orange-700':'bg-amber-100 text-amber-700'}">${i.jenis==='siswa'?'Siswa':'Tentor'}</span></td>
@@ -763,13 +1014,13 @@ function renderInvoice() {
               <td class="px-4 py-3 text-right whitespace-nowrap">
                 <button onclick="openInvoiceDetail('${i.id}')" class="text-orange-600 hover:bg-orange-50 p-1.5 rounded" title="Cetak / WA"><i data-lucide="eye" class="w-4 h-4"></i></button>
                 <button onclick="openInvoiceForm('${i.id}')" class="text-blue-600 hover:bg-blue-50 p-1.5 rounded" title="Edit"><i data-lucide="pencil" class="w-4 h-4"></i></button>
-                <button onclick="deleteRecord('invoice','${i.id}')" class="text-red-600 hover:bg-red-50 p-1.5 rounded" title="Hapus"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                <button onclick="deleteRecord('invoice','${i.id}','${i.no_invoice}')" class="text-red-600 hover:bg-red-50 p-1.5 rounded" title="Hapus"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
               </td>
             </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
-    </div>
+          }).join('')}</tbody>
+        </table>
+      </div>
+    </>`}
   </div>`;
 }
 
@@ -814,11 +1065,12 @@ function openInvoiceForm(id) {
       const harga = Number(row.querySelector('.item-harga').value) || 0;
       if (deskripsi && qty > 0) items.push({ deskripsi, qty, harga });
     });
-    if (items.length === 0) { alert('Minimal 1 item harus diisi'); return; }
+    if (items.length === 0) { showToast('Minimal 1 item harus diisi', 'warning'); return; }
     const total = items.reduce((a,it)=>a+it.qty*it.harga, 0);
     const data = { jenis: f.jenis.value, untuk_id: f.untuk_id.value, periode: f.periode.value.trim(), items: items, total: total, status: f.status.value };
     if (editing) { await supabaseClient.from('invoice').update(data).eq('id', editing.id); }
     else { const no = `INV-${new Date().getFullYear()}-${Math.floor(Math.random()*1000)}`; await supabaseClient.from('invoice').insert([{ no_invoice: no, ...data, tanggal: todayISO() }]); }
+    showToast(editing ? 'Invoice diperbarui' : 'Invoice tersimpan', 'success');
     closeModal();
   });
 
@@ -844,8 +1096,8 @@ function addItemRow(item) {
   div.className = 'item-row flex gap-2 items-start';
   div.innerHTML = `
     <input class="item-desk flex-1 border rounded-lg px-2 py-1.5 text-sm" placeholder="Deskripsi" value="${escapeHtml(it.deskripsi)}" />
-    <input class="item-qty w-14 border rounded-lg px-2 py-1.5 text-sm" type="number" min="1" placeholder="Qty" value="${it.qty}" oninput="updateInvoiceTotal()" />
-    <input class="item-harga w-24 border rounded-lg px-2 py-1.5 text-sm" type="number" min="0" placeholder="Harga" value="${it.harga}" oninput="updateInvoiceTotal()" />
+    <input class="item-qty w-14 border rounded-lg px-2 py-1.5 text-sm" type="number" min="1" value="${it.qty}" oninput="updateInvoiceTotal()" />
+    <input class="item-harga w-24 border rounded-lg px-2 py-1.5 text-sm" type="number" min="0" value="${it.harga}" oninput="updateInvoiceTotal()" />
     <button type="button" onclick="this.parentElement.remove(); updateInvoiceTotal();" class="text-red-500 hover:bg-red-50 p-1.5 rounded font-bold">✕</button>
   `;
   container.appendChild(div);
@@ -869,26 +1121,19 @@ function openInvoiceDetail(id) {
   const target = inv.jenis==='siswa' ? DB.siswa.find(x=>x.id===inv.untuk_id) : DB.tentor.find(x=>x.id===inv.untuk_id);
   const waNumber = formatWa(target?.no_wa || '');
   const waNama = inv.jenis==='siswa' ? (target?.nama_orang_tua||target?.nama||'') : (target?.nama||'');
-  
   let waMsgText = "";
   if (inv.jenis === 'tentor') {
     waMsgText = `Halo ${waNama},\n\nBerikut slip gaji *${inv.no_invoice}* periode *${inv.periode}* dengan total *${rupiah(inv.total)}*.\n\nStatus: Sudah Dibayarkan / LUNAS\n\nTerima kasih 🙏\nJoy Bimbel`;
   } else if (inv.jenis === 'siswa') {
-    if (inv.status === 'lunas') {
-      waMsgText = `Halo Bpk/Ibu ${waNama},\n\nBerikut bukti pelunasan invoice *${inv.no_invoice}* periode *${inv.periode}* dengan total *${rupiah(inv.total)}*.\n\nStatus: LUNAS\n\nTerima kasih 🙏\nJoy Bimbel`;
-    } else {
-      waMsgText = `Halo Bpk/Ibu ${waNama},\n\nBerikut tagihan *${inv.no_invoice}* periode *${inv.periode}* dengan total *${rupiah(inv.total)}*.\n\nStatus: BELUM BAYAR\n\n*Pembayaran dapat ditransfer ke:*\nBNI: 2079385983\nBCA: 4720524304\nBRI: 180701015922501\na.n. Joice Zhenrike Memmase\n\nTerima kasih 🙏\nJoy Bimbel`;
-    }
+    if (inv.status === 'lunas') waMsgText = `Halo Bpk/Ibu ${waNama},\n\nBerikut bukti pelunasan invoice *${inv.no_invoice}* periode *${inv.periode}* dengan total *${rupiah(inv.total)}*.\n\nStatus: LUNAS\n\nTerima kasih 🙏\nJoy Bimbel`;
+    else waMsgText = `Halo Bpk/Ibu ${waNama},\n\nBerikut tagihan *${inv.no_invoice}* periode *${inv.periode}* dengan total *${rupiah(inv.total)}*.\n\nStatus: BELUM BAYAR\n\n*Pembayaran dapat ditransfer ke:*\nBNI: 2079385983\nBCA: 4720524304\nBRI: 180701015922501\na.n. Joice Zhenrike Memmase\n\nTerima kasih 🙏\nJoy Bimbel`;
   }
-  const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(waMsgText)}`;
-
   const body = `
     <div class="overflow-x-auto">${buildInvoiceHTML(inv, target)}</div>
     <div class="flex flex-wrap gap-2 mt-4 pt-4 border-t print:hidden">
       <button onclick="printInvoice('${id}')" class="flex-1 bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 font-semibold">🖨️ Cetak PDF</button>
-      <a href="${waUrl}" target="_blank" class="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-center font-semibold">📱 Kirim WA</a>
-    </div>
-  `;
+      <a href="https://wa.me/${waNumber}?text=${encodeURIComponent(waMsgText)}" target="_blank" class="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-center font-semibold">📱 Kirim WA</a>
+    </div>`;
   openModal('Detail Dokumen', body);
 }
 
@@ -898,80 +1143,64 @@ function buildInvoiceHTML(inv, target) {
     : `${target?.nama || '-'}<br/><span class="text-sm text-gray-600">${target?.mapel || '-'}</span>`;
   let itemsArr = inv.items;
   if (!Array.isArray(itemsArr)) itemsArr = [];
-  
-  let docTitle = 'INVOICE';
-  let headerLabel = 'Ditagihkan kepada:';
-  let showBank = false;
+  let docTitle = 'INVOICE', headerLabel = 'Ditagihkan kepada:', showBank = false;
   if (inv.jenis === 'tentor') { docTitle = 'SLIP GAJI'; headerLabel = 'Pembayaran kepada :'; }
   else if (inv.jenis === 'siswa') {
-    if (inv.status === 'lunas') { headerLabel = 'Pelunasan oleh :'; }
+    if (inv.status === 'lunas') headerLabel = 'Pelunasan oleh :';
     else { headerLabel = 'Ditagihkan kepada:'; showBank = true; }
   }
-
-  return `
-    <div class="bg-white p-6 md:p-8 max-w-2xl mx-auto border text-black">
-      <div class="flex justify-between items-start border-b pb-4 mb-4">
-        <div>
-          ${LOGO_URL ? `<img src="${LOGO_URL}" class="h-12 mb-2 object-contain" />` : ''}
-          <h2 class="text-2xl md:text-3xl font-bold text-orange-600">JOY BIMBEL</h2>
-          <p class="text-sm text-gray-600 mt-1">Telp: 081353206612</p>
-        </div>
-        <div class="text-right">
-          <p class="font-bold text-xl md:text-2xl">${docTitle}</p>
-          <p class="font-mono text-xs md:text-sm mt-1">${escapeHtml(inv.no_invoice)}</p>
-          <p class="text-xs md:text-sm text-gray-600">${escapeHtml(inv.tanggal)}</p>
-        </div>
+  return `<div class="bg-white p-6 md:p-8 max-w-2xl mx-auto border text-black">
+    <div class="flex justify-between items-start border-b pb-4 mb-4">
+      <div>
+        ${LOGO_URL ? `<img src="${LOGO_URL}" class="h-12 mb-2 object-contain" />` : ''}
+        <h2 class="text-2xl md:text-3xl font-bold text-orange-600">JOY BIMBEL</h2>
+        <p class="text-sm text-gray-600 mt-1">Telp: 081353206612</p>
       </div>
-      <div class="mb-6 text-sm">
-        <p class="text-xs text-gray-500 uppercase font-bold">${headerLabel}</p>
-        <p class="font-bold text-lg mt-1">${namaPenerima}</p>
-        <p class="text-sm text-gray-600 mt-1">Periode: ${escapeHtml(inv.periode)}</p>
+      <div class="text-right">
+        <p class="font-bold text-xl md:text-2xl">${docTitle}</p>
+        <p class="font-mono text-xs md:text-sm mt-1">${escapeHtml(inv.no_invoice)}</p>
+        <p class="text-xs md:text-sm text-gray-600">${escapeHtml(inv.tanggal)}</p>
       </div>
-      <table class="w-full text-xs md:text-sm border-collapse mb-6">
-        <thead><tr class="border-b-2 border-gray-300">
-          <th class="text-left py-2 px-1 md:px-2">Deskripsi</th>
-          <th class="text-center py-2 px-1 md:px-2">Qty</th>
-          <th class="text-right py-2 px-1 md:px-2">Harga</th>
-          <th class="text-right py-2 px-1 md:px-2">Subtotal</th>
-        </tr></thead>
-        <tbody>
-          ${itemsArr.map(it=>`
-            <tr class="border-b">
-              <td class="py-2 px-1 md:px-2">${escapeHtml(it.deskripsi)}</td>
-              <td class="text-center py-2 px-1 md:px-2">${it.qty}</td>
-              <td class="text-right py-2 px-1 md:px-2">${rupiah(it.harga)}</td>
-              <td class="text-right py-2 px-1 md:px-2">${rupiah(it.qty*it.harga)}</td>
-            </tr>`).join('')}
-        </tbody>
-      </table>
-      <div class="flex justify-end mt-4">
-        <div class="text-right">
-          <p class="text-sm text-gray-500">Total</p>
-          <p class="text-2xl md:text-3xl font-bold text-orange-600">${rupiah(inv.total)}</p>
-          <p class="text-sm mt-1 ${inv.status==='lunas'?'text-emerald-600':'text-rose-600'} font-bold">${inv.status==='lunas'?'✅ LUNAS':'⏳ BELUM BAYAR'}</p>
-        </div>
-      </div>
-      ${showBank ? `
-      <div class="mt-8 pt-4 border-t border-gray-300 text-sm text-gray-700">
-        <p class="font-bold mb-2">Silakan lakukan pembayaran ke salah satu rekening berikut:</p>
-        <ul class="list-disc list-inside space-y-1 ml-2">
-          <li><b>BNI:</b> 2079385983</li>
-          <li><b>BCA:</b> 4720524304</li>
-          <li><b>BRI:</b> 180701015922501</li>
-        </ul>
-        <p class="mt-2 font-semibold">Atas Nama (a.n.): Joice Zhenrike Memmase</p>
-      </div>` : ''}
-      <div class="mt-6 text-xs text-gray-500"><p>Terima kasih atas kepercayaan Anda 🙏</p></div>
-    </div>`;
+    </div>
+    <div class="mb-6 text-sm">
+      <p class="text-xs text-gray-500 uppercase font-bold">${headerLabel}</p>
+      <p class="font-bold text-lg mt-1">${namaPenerima}</p>
+      <p class="text-sm text-gray-600 mt-1">Periode: ${escapeHtml(inv.periode)}</p>
+    </div>
+    <table class="w-full text-xs md:text-sm border-collapse mb-6">
+      <thead><tr class="border-b-2 border-gray-300">
+        <th class="text-left py-2 px-1 md:px-2">Deskripsi</th><th class="text-center py-2 px-1 md:px-2">Qty</th>
+        <th class="text-right py-2 px-1 md:px-2">Harga</th><th class="text-right py-2 px-1 md:px-2">Subtotal</th>
+      </tr></thead>
+      <tbody>${itemsArr.map(it=>`<tr class="border-b">
+        <td class="py-2 px-1 md:px-2">${escapeHtml(it.deskripsi)}</td>
+        <td class="text-center py-2 px-1 md:px-2">${it.qty}</td>
+        <td class="text-right py-2 px-1 md:px-2">${rupiah(it.harga)}</td>
+        <td class="text-right py-2 px-1 md:px-2">${rupiah(it.qty*it.harga)}</td>
+      </tr>`).join('')}</tbody>
+    </table>
+    <div class="flex justify-end mt-4"><div class="text-right">
+      <p class="text-sm text-gray-500">Total</p>
+      <p class="text-2xl md:text-3xl font-bold text-orange-600">${rupiah(inv.total)}</p>
+      <p class="text-sm mt-1 ${inv.status==='lunas'?'text-emerald-600':'text-rose-600'} font-bold">${inv.status==='lunas'?'✅ LUNAS':'⏳ BELUM BAYAR'}</p>
+    </div></div>
+    ${showBank ? `<div class="mt-8 pt-4 border-t border-gray-300 text-sm text-gray-700">
+      <p class="font-bold mb-2">Silakan lakukan pembayaran ke salah satu rekening berikut:</p>
+      <ul class="list-disc list-inside space-y-1 ml-2">
+        <li><b>BNI:</b> 2079385983</li><li><b>BCA:</b> 4720524304</li><li><b>BRI:</b> 180701015922501</li>
+      </ul>
+      <p class="mt-2 font-semibold">Atas Nama (a.n.): Joice Zhenrike Memmase</p>
+    </div>` : ''}
+    <div class="mt-6 text-xs text-gray-500"><p>Terima kasih atas kepercayaan Anda 🙏</p></div>
+  </div>`;
 }
 
 function printInvoice(id) {
   const inv = DB.invoice.find(x=>x.id===id);
   if (!inv) return;
   const target = inv.jenis==='siswa' ? DB.siswa.find(x=>x.id===inv.untuk_id) : DB.tentor.find(x=>x.id===inv.untuk_id);
-  const printArea = document.getElementById('print-area');
-  printArea.innerHTML = buildInvoiceHTML(inv, target);
-  setTimeout(() => { window.print(); setTimeout(() => { printArea.innerHTML = ''; }, 1000); }, 100);
+  document.getElementById('print-area').innerHTML = buildInvoiceHTML(inv, target);
+  setTimeout(() => { window.print(); setTimeout(() => { document.getElementById('print-area').innerHTML = ''; }, 1000); }, 100);
 }
 
 // ================= LAPORAN KEUANGAN =================
@@ -989,18 +1218,37 @@ function renderLaporanKeuangan() {
   </div>`;
 }
 
-// ================= CRUD SISWA =================
+// ================= SISWA (dengan search) =================
 function renderSiswa() {
-  const role = DB.profile ? DB.profile.role : 'tentor';
+  const role = DB.profile?.role || 'tentor';
+  const q = (searchSiswa || '').toLowerCase();
+  const filtered = DB.siswa.filter(s => 
+    !q || (s.nama||'').toLowerCase().includes(q) || (s.kelas||'').toLowerCase().includes(q) || (s.nama_orang_tua||'').toLowerCase().includes(q) || (s.no_wa||'').includes(q)
+  );
+
+  // Hitung jadwal per siswa
+  const jadwalCount = {};
+  DB.jadwal.forEach(j => { jadwalCount[j.siswa_id] = (jadwalCount[j.siswa_id] || 0) + 1; });
+
   return `<div>
-    <div class="flex justify-between items-center mb-4">
-      <div><h1 class="text-2xl font-bold">Daftar Siswa</h1><p class="text-gray-500 text-sm">${DB.siswa.length} siswa terdaftar</p></div>
-      ${role==='admin'?`<button onclick="openSiswaForm()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Tambah</button>`:''}
+    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+      <div><h1 class="text-2xl font-bold">Daftar Siswa</h1><p class="text-gray-500 text-sm">${filtered.length} dari ${DB.siswa.length} siswa</p></div>
+      ${role==='admin'?`<button onclick="openSiswaForm()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold self-start">+ Tambah</button>`:''}
     </div>
     
+    <!-- Search -->
+    <div class="bg-white rounded-xl border p-3 mb-4">
+      <div class="relative">
+        <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+        <input oninput="searchSiswa=this.value; renderPage();" value="${escapeHtml(searchSiswa)}" placeholder="Cari nama, kelas, orang tua, atau no WA..." class="w-full border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
+      </div>
+    </div>
+
+    ${filtered.length === 0 ? `<div class="text-center text-gray-400 py-12 bg-white border rounded-xl"><i data-lucide="search" class="w-10 h-10 mx-auto mb-2 text-gray-300"></i><p>Tidak ada siswa yang cocok.</p></div>` :
+    `<>
+    <!-- Mobile -->
     <div class="md:hidden space-y-3">
-      ${DB.siswa.length === 0 ? '<div class="text-center text-gray-400 py-8 bg-white border rounded-xl">Belum ada siswa.</div>' : 
-      DB.siswa.map(s=>`
+      ${filtered.map(s=>`
         <div class="bg-white rounded-xl border p-4">
           <div class="flex justify-between items-start gap-2 mb-2">
             <div class="flex-1 min-w-0">
@@ -1010,44 +1258,42 @@ function renderSiswa() {
             ${role==='admin'?`
             <div class="flex gap-1 flex-shrink-0">
               <button onclick="openSiswaForm('${s.id}')" class="text-orange-600 p-2.5 bg-orange-50 hover:bg-orange-100 rounded-lg border border-orange-200"><i data-lucide="pencil" class="w-4 h-4"></i></button>
-              <button onclick="deleteRecord('siswa','${s.id}')" class="text-red-600 p-2.5 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              <button onclick="deleteRecord('siswa','${s.id}','${s.nama}')" class="text-red-600 p-2.5 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
             </div>`:''}
           </div>
           <div class="text-sm space-y-1.5 pt-2 border-t">
             <div class="flex gap-2"><span class="text-gray-500 flex-shrink-0 w-12">Ortu:</span><span class="font-medium">${escapeHtml(s.nama_orang_tua||'-')}</span></div>
-            <div class="flex gap-2"><span class="text-gray-500 flex-shrink-0 w-12">WA:</span><span>${escapeHtml(s.no_wa || '-')}</span></div>
+            <div class="flex gap-2 items-center"><span class="text-gray-500 flex-shrink-0 w-12">WA:</span><span class="truncate">${escapeHtml(s.no_wa || '-')}</span></div>
+            ${jadwalCount[s.id] ? `<div class="flex gap-2"><span class="text-gray-500 flex-shrink-0 w-12">Jadwal:</span><span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-semibold">${jadwalCount[s.id]}× pertemuan/minggu</span></div>` : ''}
           </div>
         </div>
       `).join('')}
     </div>
-    
+    <!-- Desktop -->
     <div class="hidden md:block bg-white rounded-xl border overflow-hidden">
       <table class="w-full text-sm">
-        <thead class="bg-gray-50">
-          <tr>
-            <th class="text-left px-4 py-3">Nama</th>
-            <th class="text-left px-4 py-3">Kelas</th>
-            <th class="text-left px-4 py-3">Orang Tua</th>
-            <th class="text-left px-4 py-3">No WA Ortu</th>
-            ${role==='admin'?'<th class="text-right px-4 py-3">Aksi</th>':''}
-          </tr>
-        </thead>
-        <tbody>
-          ${DB.siswa.map(s=>`
-            <tr class="border-t">
-              <td class="px-4 py-3 font-medium">${escapeHtml(s.nama)}</td>
-              <td class="px-4 py-3">${escapeHtml(s.kelas)}</td>
-              <td class="px-4 py-3">${escapeHtml(s.nama_orang_tua)}</td>
-              <td class="px-4 py-3">${escapeHtml(s.no_wa || '-')}</td>
-              ${role==='admin'?`
-              <td class="px-4 py-3 text-right">
-                <button onclick="openSiswaForm('${s.id}')" class="text-orange-600 p-1.5 hover:bg-orange-50 rounded" title="Edit"><i data-lucide="pencil" class="w-4 h-4"></i></button>
-                <button onclick="deleteRecord('siswa','${s.id}')" class="text-red-600 p-1.5 hover:bg-red-50 rounded" title="Hapus"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-              </td>`:''}
-            </tr>`).join('')}
-        </tbody>
+        <thead class="bg-gray-50"><tr>
+          <th class="text-left px-4 py-3">Nama</th><th class="text-left px-4 py-3">Kelas</th>
+          <th class="text-left px-4 py-3">Orang Tua</th><th class="text-left px-4 py-3">No WA</th>
+          <th class="text-left px-4 py-3">Jadwal</th>
+          ${role==='admin'?'<th class="text-right px-4 py-3">Aksi</th>':''}
+        </tr></thead>
+        <tbody>${filtered.map(s=>`
+          <tr class="border-t hover:bg-gray-50">
+            <td class="px-4 py-3 font-medium">${escapeHtml(s.nama)}</td>
+            <td class="px-4 py-3">${escapeHtml(s.kelas || '-')}</td>
+            <td class="px-4 py-3">${escapeHtml(s.nama_orang_tua || '-')}</td>
+            <td class="px-4 py-3">${escapeHtml(s.no_wa || '-')}</td>
+            <td class="px-4 py-3">${jadwalCount[s.id] ? `<span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-semibold">${jadwalCount[s.id]}×/minggu</span>` : '<span class="text-xs text-gray-400">-</span>'}</td>
+            ${role==='admin'?`
+            <td class="px-4 py-3 text-right whitespace-nowrap">
+              <button onclick="openSiswaForm('${s.id}')" class="text-orange-600 p-1.5 hover:bg-orange-50 rounded"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+              <button onclick="deleteRecord('siswa','${s.id}','${s.nama}')" class="text-red-600 p-1.5 hover:bg-red-50 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+            </td>`:''}
+          </tr>`).join('')}</tbody>
       </table>
     </div>
+    </>`}
   </div>`;
 }
 
@@ -1056,6 +1302,7 @@ async function simpanSiswa(e) {
   const data = { nama: f.nama.value, kelas: f.kelas.value, nama_orang_tua: f.nama_orang_tua.value, no_wa: f.no_wa.value, tentor_id: f.tentor_id.value || null, aktif: true };
   if (id) await supabaseClient.from('siswa').update(data).eq('id', id);
   else await supabaseClient.from('siswa').insert([data]);
+  showToast(id ? 'Data siswa diperbarui' : 'Siswa baru ditambahkan', 'success');
   closeModal();
 }
 
@@ -1073,17 +1320,36 @@ function openSiswaForm(id) {
   openModal(editing?'Edit Siswa':'Tambah Siswa', body, simpanSiswa);
 }
 
-// ================= CRUD TENTOR =================
+// ================= TENTOR (dengan search) =================
 function renderTentor() {
+  const q = (searchTentor || '').toLowerCase();
+  const filtered = DB.tentor.filter(t => 
+    !q || (t.nama||'').toLowerCase().includes(q) || (t.mapel||'').toLowerCase().includes(q) || (t.email||'').toLowerCase().includes(q)
+  );
+
+  // Hitung siswa per tentor
+  const siswaCount = {};
+  DB.siswa.forEach(s => { if (s.tentor_id) siswaCount[s.tentor_id] = (siswaCount[s.tentor_id] || 0) + 1; });
+
   return `<div>
-    <div class="flex justify-between items-center mb-4">
-      <div><h1 class="text-2xl font-bold">Daftar Tentor</h1><p class="text-gray-500 text-sm">${DB.tentor.length} tentor terdaftar</p></div>
-      <button onclick="openTentorForm()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Tambah</button>
+    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+      <div><h1 class="text-2xl font-bold">Daftar Tentor</h1><p class="text-gray-500 text-sm">${filtered.length} dari ${DB.tentor.length} tentor</p></div>
+      <button onclick="openTentorForm()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-semibold self-start">+ Tambah</button>
     </div>
     
+    <!-- Search -->
+    <div class="bg-white rounded-xl border p-3 mb-4">
+      <div class="relative">
+        <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+        <input oninput="searchTentor=this.value; renderPage();" value="${escapeHtml(searchTentor)}" placeholder="Cari nama, mapel, atau email..." class="w-full border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+      </div>
+    </div>
+
+    ${filtered.length === 0 ? `<div class="text-center text-gray-400 py-12 bg-white border rounded-xl"><i data-lucide="search" class="w-10 h-10 mx-auto mb-2 text-gray-300"></i><p>Tidak ada tentor yang cocok.</p></div>` :
+    `<>
+    <!-- Mobile -->
     <div class="md:hidden space-y-3">
-      ${DB.tentor.length === 0 ? '<div class="text-center text-gray-400 py-8 bg-white border rounded-xl">Belum ada tentor.</div>' : 
-      DB.tentor.map(t=>`
+      ${filtered.map(t=>`
         <div class="bg-white rounded-xl border p-4">
           <div class="flex justify-between items-start gap-2 mb-2">
             <div class="flex-1 min-w-0">
@@ -1092,42 +1358,48 @@ function renderTentor() {
             </div>
             <div class="flex gap-1 flex-shrink-0">
               <button onclick="openTentorForm('${t.id}')" class="text-orange-600 p-2.5 bg-orange-50 hover:bg-orange-100 rounded-lg border border-orange-200"><i data-lucide="pencil" class="w-4 h-4"></i></button>
-              <button onclick="deleteRecord('tentor','${t.id}')" class="text-red-600 p-2.5 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              <button onclick="deleteRecord('tentor','${t.id}','${t.nama}')" class="text-red-600 p-2.5 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
             </div>
           </div>
-          <div class="text-sm pt-2 border-t">
+          <div class="text-sm space-y-1.5 pt-2 border-t">
             <div class="flex gap-2"><span class="text-gray-500 flex-shrink-0 w-12">Email:</span><span class="truncate">${escapeHtml(t.email || '-')}</span></div>
+            <div class="flex gap-2"><span class="text-gray-500 flex-shrink-0 w-12">Siswa:</span><span class="font-semibold">${siswaCount[t.id] || 0} siswa</span></div>
           </div>
         </div>
       `).join('')}
     </div>
-    
+    <!-- Desktop -->
     <div class="hidden md:block bg-white rounded-xl border overflow-hidden">
       <table class="w-full text-sm">
         <thead class="bg-gray-50"><tr>
           <th class="text-left px-4 py-3">Nama</th><th class="text-left px-4 py-3">Mapel</th>
-          <th class="text-left px-4 py-3">Email</th><th class="text-right px-4 py-3">Aksi</th>
+          <th class="text-left px-4 py-3">Email</th><th class="text-left px-4 py-3">Siswa</th><th class="text-right px-4 py-3">Aksi</th>
         </tr></thead>
-        <tbody>${DB.tentor.map(t=>`<tr class="border-t">
+        <tbody>${filtered.map(t=>`<tr class="border-t hover:bg-gray-50">
           <td class="px-4 py-3 font-medium">${escapeHtml(t.nama)}</td>
           <td class="px-4 py-3">${escapeHtml(t.mapel)}</td>
           <td class="px-4 py-3">${escapeHtml(t.email)}</td>
-          <td class="px-4 py-3 text-right">
+          <td class="px-4 py-3"><span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">${siswaCount[t.id] || 0}</span></td>
+          <td class="px-4 py-3 text-right whitespace-nowrap">
             <button onclick="openTentorForm('${t.id}')" class="text-orange-600 p-1.5 hover:bg-orange-50 rounded"><i data-lucide="pencil" class="w-4 h-4"></i></button>
-            <button onclick="deleteRecord('tentor','${t.id}')" class="text-red-600 p-1.5 hover:bg-red-50 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+            <button onclick="deleteRecord('tentor','${t.id}','${t.nama}')" class="text-red-600 p-1.5 hover:bg-red-50 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
           </td>
         </tr>`).join('')}</tbody>
       </table>
     </div>
+    </>`}
   </div>`;
 }
+
 async function simpanTentor(e) {
   const f = e.target; const id = f.dataset.id;
   const data = { nama: f.nama.value, email: f.email.value, mapel: f.mapel.value, tarif: Number(f.tarif.value)||0 };
   if (id) await supabaseClient.from('tentor').update(data).eq('id', id);
   else await supabaseClient.from('tentor').insert([data]);
+  showToast(id ? 'Data tentor diperbarui' : 'Tentor baru ditambahkan', 'success');
   closeModal();
 }
+
 function openTentorForm(id) {
   const editing = id ? DB.tentor.find(x=>x.id===id) : null;
   const body = `<form data-id="${id||''}"><div class="space-y-3">
@@ -1140,13 +1412,19 @@ function openTentorForm(id) {
   openModal(editing?'Edit Tentor':'Tambah Tentor', body, simpanTentor);
 }
 
-// ================= JADWAL (UPDATED - JAM TANPA DETIK) =================
+// ================= JADWAL (dengan search + badge pertemuan) =================
 function renderJadwal() {
-  const role = DB.profile ? DB.profile.role : 'tentor';
+  const role = DB.profile?.role || 'tentor';
   const myTentorId = getMyTentorId();
   let filteredJadwal = [];
-  if (role === 'admin') { filteredJadwal = DB.jadwal; }
-  else if (role === 'tentor') { filteredJadwal = myTentorId ? DB.jadwal.filter(j => j.tentor_id === myTentorId) : []; }
+  if (role === 'admin') filteredJadwal = DB.jadwal;
+  else if (role === 'tentor' && myTentorId) filteredJadwal = DB.jadwal.filter(j => j.tentor_id === myTentorId);
+
+  const q = (searchSiswa || '').toLowerCase();
+  if (q) {
+    const matchingSiswaIds = DB.siswa.filter(s => (s.nama||'').toLowerCase().includes(q)).map(s => s.id);
+    filteredJadwal = filteredJadwal.filter(j => matchingSiswaIds.includes(j.siswa_id));
+  }
 
   const grouped = {};
   filteredJadwal.forEach(j => { if (!grouped[j.siswa_id]) grouped[j.siswa_id] = []; grouped[j.siswa_id].push(j); });
@@ -1157,11 +1435,20 @@ function renderJadwal() {
   });
 
   return `<div>
-    <div class="flex justify-between items-center mb-4">
+    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
       <h1 class="text-2xl font-bold">Jadwal Bimbel</h1>
-      ${role==='admin'?`<button onclick="openJadwalForm()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Tambah</button>`:''}
+      ${role==='admin'?`<button onclick="openJadwalForm()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold self-start">+ Tambah</button>`:''}
     </div>
-    ${sortedSiswaIds.length === 0 ? '<div class="text-center text-gray-400 py-8 bg-white border rounded-xl">Belum ada jadwal.</div>' : 
+    
+    <!-- Search -->
+    <div class="bg-white rounded-xl border p-3 mb-4">
+      <div class="relative">
+        <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+        <input oninput="searchSiswa=this.value; renderPage();" value="${escapeHtml(searchSiswa)}" placeholder="Cari nama siswa..." class="w-full border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
+      </div>
+    </div>
+
+    ${sortedSiswaIds.length === 0 ? `<div class="text-center text-gray-400 py-12 bg-white border rounded-xl"><i data-lucide="calendar" class="w-10 h-10 mx-auto mb-2 text-gray-300"></i><p>${searchSiswa ? 'Tidak ada jadwal yang cocok.' : 'Belum ada jadwal.'}</p></div>` : 
     `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       ${sortedSiswaIds.map(siswaId => {
         const s = DB.siswa.find(x=>x.id===siswaId) || {};
@@ -1171,12 +1458,17 @@ function renderJadwal() {
           if (dayA !== dayB) return dayA - dayB;
           return (a.jam_mulai || '').localeCompare(b.jam_mulai || '');
         });
-        return `<div class="bg-white rounded-xl border shadow-sm overflow-hidden flex flex-col">
-          <div class="bg-orange-50 px-4 py-3 border-b border-orange-100 flex items-center gap-2">
-            <i data-lucide="user" class="w-5 h-5 text-orange-600"></i>
-            <h2 class="font-bold text-lg text-orange-800 truncate">${escapeHtml(s.nama || 'Siswa Terhapus')}</h2>
+        return `<div class="bg-white rounded-xl border shadow-sm overflow-hidden flex flex-col hover:shadow-md transition">
+          <div class="bg-orange-50 px-4 py-3 border-b border-orange-100">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2 min-w-0">
+                <i data-lucide="user" class="w-5 h-5 text-orange-600 flex-shrink-0"></i>
+                <h2 class="font-bold text-lg text-orange-800 truncate">${escapeHtml(s.nama || 'Siswa Terhapus')}</h2>
+              </div>
+              <span class="text-xs bg-orange-600 text-white px-2 py-1 rounded-full font-semibold flex-shrink-0">${jadwalSiswa.length}×/minggu</span>
+            </div>
           </div>
-          <div class="p-4 flex-1 space-y-3">
+          <div class="p-4 flex-1 space-y-2">
             ${jadwalSiswa.map(j => {
               const t = DB.tentor.find(x=>x.id===j.tentor_id) || {};
               return `<div class="bg-gray-50 rounded-lg p-3 border flex justify-between items-center gap-2">
@@ -1185,7 +1477,7 @@ function renderJadwal() {
                   <div class="text-sm text-gray-600 mt-0.5 flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3 text-gray-500"></i> ${formatJam(j.jam_mulai)} - ${formatJam(j.jam_selesai)}</div>
                   <div class="text-xs text-orange-600 mt-1 font-medium truncate">Tentor: ${escapeHtml(t.nama || '-')}</div>
                 </div>
-                ${role==='admin'?`<button onclick="deleteRecord('jadwal','${j.id}')" class="text-red-400 hover:text-red-600 p-2 rounded hover:bg-red-50 flex-shrink-0"><i data-lucide="trash-2" class="w-4 h-4"></i></button>`:''}
+                ${role==='admin'?`<button onclick="deleteRecord('jadwal','${j.id}','jadwal ${j.hari}')" class="text-red-400 hover:text-red-600 p-2 rounded hover:bg-red-50 flex-shrink-0"><i data-lucide="trash-2" class="w-4 h-4"></i></button>`:''}
               </div>`;
             }).join('')}
           </div>
@@ -1194,9 +1486,11 @@ function renderJadwal() {
     </div>`}
   </div>`;
 }
+
 async function simpanJadwal(e) {
   const f = e.target;
   await supabaseClient.from('jadwal').insert([{ siswa_id: f.siswa_id.value, tentor_id: f.tentor_id.value, hari: f.hari.value, jam_mulai: f.jam_mulai.value, jam_selesai: f.jam_selesai.value }]);
+  showToast('Jadwal berhasil ditambahkan', 'success');
   closeModal();
 }
 function openJadwalForm() {
@@ -1213,22 +1507,67 @@ function openJadwalForm() {
 // ================= ABSENSI =================
 function renderAbsensi() {
   const existing = DB.absensi.filter(a => a.tanggal === absensiDate);
+  const sudahHadirCount = existing.filter(a => a.status === 'hadir').length;
   return `<div>
-    <div class="flex justify-between items-center mb-4"><h1 class="text-2xl font-bold">Absensi</h1><input type="date" value="${absensiDate}" onchange="absensiDate=this.value; renderPage();" class="border rounded-lg px-3 py-2 text-sm" /></div>
-    <div class="bg-white rounded-xl border overflow-hidden"><table class="w-full text-sm"><thead class="bg-gray-50"><tr><th class="text-left px-3 py-3">Nama</th><th class="text-center px-3 py-3">Status</th></tr></thead>
-      <tbody>${DB.siswa.map(s=>{ const cur = existing.find(a=>a.siswa_id===s.id)?.status; return `<tr class="border-t"><td class="px-3 py-3 text-sm">${escapeHtml(s.nama)}</td><td class="px-3 py-3"><div class="flex justify-center gap-1 flex-wrap">${['hadir','izin','sakit','alpa'].map(st=>`<button onclick="setAbsensi('${s.id}','${st}')" class="px-2 py-1.5 rounded text-xs border ${cur===st?'bg-orange-500 text-white':'bg-white hover:bg-gray-50'} capitalize">${st}</button>`).join('')}</div></td></tr>`; }).join('')}</tbody>
-    </table></div>
+    <div class="flex justify-between items-center mb-4">
+      <div><h1 class="text-2xl font-bold">Absensi</h1><p class="text-gray-500 text-sm">${existing.length} siswa sudah diabsensi</p></div>
+      <input type="date" value="${absensiDate}" onchange="absensiDate=this.value; renderPage();" class="border rounded-lg px-3 py-2 text-sm" />
+    </div>
+    ${DB.siswa.length > 0 && existing.length < DB.siswa.length ? `
+    <div class="bg-white rounded-xl border p-3 mb-3">
+      <button onclick="hadirSemua()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition">
+        <i data-lucide="check-circle" class="w-4 h-4"></i> Tandai Semua Hadir
+      </button>
+    </div>` : ''}
+    <div class="bg-white rounded-xl border overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50"><tr><th class="text-left px-3 py-3">Nama</th><th class="text-center px-3 py-3">Status</th></tr></thead>
+        <tbody>${DB.siswa.map(s=>{ 
+          const cur = existing.find(a=>a.siswa_id===s.id)?.status; 
+          return `<tr class="border-t hover:bg-gray-50">
+            <td class="px-3 py-3 text-sm font-medium">${escapeHtml(s.nama)}</td>
+            <td class="px-3 py-3">
+              <div class="flex justify-center gap-1 flex-wrap">
+                ${['hadir','izin','sakit','alpa'].map(st=>`<button onclick="setAbsensi('${s.id}','${st}')" class="px-2 py-1.5 rounded text-xs border ${cur===st?'bg-orange-500 text-white':'bg-white hover:bg-gray-50'} capitalize">${st}</button>`).join('')}
+              </div>
+            </td>
+          </tr>`; 
+        }).join('')}</tbody>
+      </table>
+    </div>
   </div>`;
 }
+
 async function setAbsensi(siswa_id, status) {
   const ex = DB.absensi.find(a => a.siswa_id===siswa_id && a.tanggal===absensiDate);
   if (ex) await supabaseClient.from('absensi').update({ status }).eq('id', ex.id);
   else await supabaseClient.from('absensi').insert([{ siswa_id, tanggal: absensiDate, status, oleh: DB.profile ? DB.profile.email : '' }]);
 }
 
-async function deleteRecord(table, id) {
-  if (!confirm('Yakin hapus data ini?')) return;
-  await supabaseClient.from(table).delete().eq('id', id);
+async function hadirSemua() {
+  showConfirm('Tandai Semua Hadir?', `Tandai semua ${DB.siswa.length} siswa sebagai HADIR untuk tanggal ${absensiDate}?`, async () => {
+    const existing = DB.absensi.filter(a => a.tanggal === absensiDate);
+    const existingIds = new Set(existing.map(a => a.siswa_id));
+    const inserts = DB.siswa.filter(s => !existingIds.has(s.id)).map(s => ({
+      siswa_id: s.id, tanggal: absensiDate, status: 'hadir', oleh: DB.profile?.email || ''
+    }));
+    if (inserts.length > 0) {
+      const { error } = await supabaseClient.from('absensi').insert(inserts);
+      if (error) showToast('Gagal: ' + error.message, 'error');
+      else showToast(`${inserts.length} siswa ditandai hadir`, 'success');
+    } else {
+      showToast('Semua siswa sudah diabsensi', 'info');
+    }
+  }, 'Ya, Tandai Semua', false);
+}
+
+// ================= DELETE HELPER =================
+async function deleteRecord(table, id, name = 'data ini') {
+  showConfirm('Hapus Data?', `Yakin ingin menghapus "${name}"? Tindakan ini tidak bisa dibatalkan.`, async () => {
+    const { error } = await supabaseClient.from(table).delete().eq('id', id);
+    if (error) showToast('Gagal menghapus: ' + error.message, 'error');
+    else showToast('Data berhasil dihapus', 'success');
+  });
 }
 
 // ================= INIT =================
