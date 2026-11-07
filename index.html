@@ -38,6 +38,9 @@
 </head>
 <body class="bg-slate-100">
 
+<!-- PENANGKAP ERROR GLOBAL -->
+<div id="global-error" class="hidden fixed top-0 left-0 w-full bg-red-600 text-white p-4 z-[9999] text-center font-bold shadow-lg"></div>
+
 <!-- LOGIN -->
 <div id="login-page" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 p-4">
   <form id="login-form" class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md transition-all duration-300">
@@ -60,7 +63,6 @@
 
 <!-- APP -->
 <div id="app-page" class="hidden opacity-0 transition-opacity duration-500">
-  <!-- HEADER MOBILE (Tombol Logout ditambahkan di sini) -->
   <div class="md:hidden bg-white border-b px-4 py-3 flex items-center justify-between sticky top-0 z-30">
     <button onclick="toggleSidebar()"><i data-lucide="menu" class="w-6 h-6"></i></button>
     <span class="font-bold"><span class="text-orange-600">Joy</span> Bimbel</span>
@@ -89,11 +91,24 @@
 <div id="print-area"></div>
 
 <script>
+// ================= ERROR HANDLER GLOBAL =================
+window.onerror = function(msg, url, line, col, error) {
+  const errDiv = document.getElementById('global-error');
+  if (errDiv) {
+    errDiv.innerHTML = "⚠️ Error Sistem: " + msg + " (Baris " + line + ")";
+    errDiv.classList.remove('hidden');
+    setTimeout(() => errDiv.classList.add('hidden'), 5000);
+  }
+  return false;
+};
+
 // ================= GLOBAL DATA =================
 let DB = { profile: null, siswa: [], tentor: [], jadwal: [], absensi: [], invoice: [], laporan: [] };
 let currentPage = 'dashboard';
 let absensiDate = new Date().toISOString().slice(0,10);
 let chartInstance = null;
+let realtimeChannel = null; // Variabel untuk menyimpan saluran realtime
+let refreshTimeout = null;
 
 // ================= HELPERS =================
 function escapeHtml(s) { return String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -106,13 +121,18 @@ const HARI = ['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'];
 
 // ================= AUTH =================
 async function checkSession() {
-  const { data: { session } } = await supabaseClient.auth.getSession();
-  if (session) {
-    await loadAllData(session.user);
-  } else {
+  try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session) {
+      await loadAllData(session.user);
+    } else {
+      document.getElementById('login-page').classList.remove('hidden');
+      document.getElementById('app-page').classList.add('hidden');
+      document.getElementById('loading-page').classList.add('hidden');
+    }
+  } catch (e) {
+    console.error(e);
     document.getElementById('login-page').classList.remove('hidden');
-    document.getElementById('app-page').classList.add('hidden');
-    document.getElementById('loading-page').classList.add('hidden');
   }
 }
 
@@ -164,9 +184,16 @@ async function loadAllData(user) {
 
     bootApp();
     
-    supabaseClient.channel('custom-all-channel')
+    // Bersihkan channel lama jika ada, sebelum membuat yang baru
+    if (realtimeChannel) {
+      await supabaseClient.removeChannel(realtimeChannel);
+    }
+
+    // Setup Realtime dengan jeda (debounce) agar tidak crash
+    realtimeChannel = supabaseClient.channel('custom-all-channel')
       .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
-        loadAllData(user);
+        clearTimeout(refreshTimeout);
+        refreshTimeout = setTimeout(() => loadAllData(user), 1000); // Tunggu 1 detik sebelum refresh
       }).subscribe();
 
   } catch (err) {
@@ -176,19 +203,27 @@ async function loadAllData(user) {
   }
 }
 
-// ================= FUNGSI LOGOUT DIPERBAIKI =================
+// ================= FUNGSI LOGOUT DIPERBAIKI TOTAL =================
 async function logout() { 
   if (!confirm('Apakah Anda yakin ingin keluar?')) return; 
   try {
-    // Menunggu proses hapus sesi selesai, baru reload halaman
+    // 1. Hentikan listener realtime
+    if (realtimeChannel) {
+      await supabaseClient.removeChannel(realtimeChannel);
+      realtimeChannel = null;
+    }
+    // 2. Hapus semua channel yang mungkin menggantung
+    await supabaseClient.removeAllChannels();
+    // 3. Logout dari auth
     await supabaseClient.auth.signOut(); 
+    // 4. Reload halaman
     location.reload(); 
   } catch (error) {
     console.error("Gagal logout:", error);
-    location.reload(); // Tetap reload jika terjadi error
+    location.reload(); 
   }
 }
-// ============================================================
+// ===================================================================
 
 // ================= APP ROUTING =================
 function bootApp() {
@@ -200,7 +235,8 @@ function bootApp() {
     appPage.classList.remove('hidden'); setTimeout(() => appPage.classList.remove('opacity-0'), 50);
     document.getElementById('sidebar-role').textContent = DB.profile.role.toUpperCase() + ' - ' + DB.profile.nama;
     document.getElementById('mobile-role').textContent = DB.profile.role;
-    renderNav(); renderPage(); lucide.createIcons();
+    renderNav(); renderPage(); 
+    if (typeof lucide !== 'undefined') lucide.createIcons();
   }, 400);
 }
 
@@ -223,7 +259,7 @@ function renderNav() {
     <button onclick="navigate('${m.id}')" class="flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition ${currentPage===m.id ? 'bg-orange-50 text-orange-700 font-semibold' : 'hover:bg-gray-100 text-gray-700'}">
       <i data-lucide="${m.icon}" class="w-4 h-4 flex-shrink-0"></i> <span class="truncate">${m.label}</span>
     </button>`).join('');
-  lucide.createIcons();
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function navigate(page) { currentPage = page; renderNav(); renderPage(); if (window.innerWidth < 768) document.getElementById('sidebar').classList.add('hidden','-translate-x-full'); }
@@ -233,7 +269,7 @@ function toggleSidebar() { const s = document.getElementById('sidebar'); s.class
 let modalSubmit = null;
 function openModal(title, body, onSubmit) {
   document.getElementById('modal-title').textContent = title; document.getElementById('modal-body').innerHTML = body;
-  modalSubmit = onSubmit; document.getElementById('modal').classList.remove('hidden'); lucide.createIcons();
+  modalSubmit = onSubmit; document.getElementById('modal').classList.remove('hidden'); if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 function closeModal() { document.getElementById('modal').classList.add('hidden'); modalSubmit = null; }
 document.getElementById('modal-body').addEventListener('submit', (e) => { e.preventDefault(); if (modalSubmit) modalSubmit(e); });
@@ -243,7 +279,7 @@ function renderPage() {
   const content = document.getElementById('content');
   const pages = { dashboard: renderDashboard, siswa: () => renderSiswa(), tentor: () => renderTentor(), jadwal: () => renderJadwal(), absensi: () => renderAbsensi(), invoice: () => renderInvoice(), keuangan: () => renderLaporanKeuangan(), backup: () => renderBackup(), laporan_tentor: () => renderLaporanTentor() };
   content.innerHTML = (pages[currentPage] || renderDashboard)();
-  lucide.createIcons();
+  if (typeof lucide !== 'undefined') lucide.createIcons();
   if (currentPage === 'keuangan') setTimeout(mountChart, 50);
 }
 
@@ -441,7 +477,10 @@ function renderBackup() {
 }
 
 // ================= INIT =================
-window.addEventListener('DOMContentLoaded', () => { lucide.createIcons(); checkSession(); });
+window.addEventListener('DOMContentLoaded', () => { 
+  if (typeof lucide !== 'undefined') lucide.createIcons(); 
+  checkSession(); 
+});
 </script>
 </body>
 </html>
