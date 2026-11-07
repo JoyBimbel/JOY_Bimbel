@@ -124,14 +124,30 @@ initData(K.tentor, seedTentor);
 initData(K.siswa, seedSiswa); 
 initData(K.jadwal, seedJadwal);
 
-// MIGRASI OTOMATIS: Ubah admin lama ke akun Rico jika masih ada di localStorage
+// ================= SKRIP PAKSA UPDATE ADMIN =================
+// 1. Ambil data user yang ada di browser
 let currentUsers = load(K.users, []);
-let oldAdmin = currentUsers.find(u => u.email === 'admin@bimbel.com');
-if (oldAdmin) {
-  oldAdmin.email = 'ricokristanto18@gmail.com';
-  oldAdmin.nama = 'Rico';
-  save(K.users, currentUsers);
+
+// 2. Hapus akun admin lama secara paksa jika masih ada
+currentUsers = currentUsers.filter(u => u.email !== 'admin@bimbel.com');
+
+// 3. Cari atau buat akun Rico
+let rico = currentUsers.find(u => u.email === 'ricokristanto18@gmail.com');
+if (!rico) {
+    currentUsers.push({ id:'u1', email:'ricokristanto18@gmail.com', password:'admin123', role:'admin', nama:'Rico' });
+} else {
+    rico.nama = 'Rico';
+    rico.password = 'admin123';
+    rico.role = 'admin';
 }
+save(K.users, currentUsers);
+
+// 4. Logout paksa jika sesi saat ini masih menggunakan akun admin lama
+let oldSession = load(K.session, null);
+if (oldSession && oldSession.email === 'admin@bimbel.com') {
+    localStorage.removeItem(K.session);
+}
+// =============================================================
 
 const getUsers = () => load(K.users, []); const saveUsers = v => save(K.users, v);
 const getSiswa = () => load(K.siswa, []); const saveSiswa = v => save(K.siswa, v);
@@ -327,14 +343,12 @@ function renderDashboard() {
 
   const pemasukan = inv.filter(i=>i.jenis==='siswa' && i.status==='lunas').reduce((a,b)=>a+b.total,0);
 
-  // Kondisi: Sembunyikan pemasukan jika role adalah tentor
   const pemasukanCard = session.role === 'admin' ? `
     <div class="bg-white rounded-xl p-4 border">
       <div class="text-xs text-gray-500 mb-2">Pemasukan Lunas</div>
       <div class="text-xl font-bold text-emerald-600">${rupiah(pemasukan)}</div>
     </div>` : '';
 
-  // Sesuaikan jumlah kolom grid: 4 untuk admin, 3 untuk tentor
   const gridClass = session.role === 'admin' ? 'md:grid-cols-4' : 'md:grid-cols-3';
 
   return `
