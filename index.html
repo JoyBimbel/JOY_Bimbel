@@ -111,7 +111,7 @@ function save(key, v) { localStorage.setItem(key, JSON.stringify(v)); }
 
 // ================= SEED & INIT =================
 const seedUsers = [
-  { id:'u1', email:'admin@bimbel.com', password:'admin123', role:'admin', nama:'Admin Utama' },
+  { id:'u1', email:'ricokristanto18@gmail.com', password:'admin123', role:'admin', nama:'Rico' },
   { id:'u2', email:'tentor@bimbel.com', password:'tentor123', role:'tentor', nama:'Bu Sari (Tentor)', tentor_id:'t1' }
 ];
 const seedTentor = [{id:'t1', nama:'Bu Sari', email:'sari@bimbel.com', mapel:'Matematika', no_wa:'081211112222', tarif:50000, aktif:true}];
@@ -119,7 +119,19 @@ const seedSiswa = [{id:'s1', nama:'Ahmad Fauzi', kelas:'SD 5', nama_orang_tua:'B
 const seedJadwal = [{id:'j1', siswa_id:'s1', tentor_id:'t1', mapel:'Matematika', hari:'Senin', jam_mulai:'15:00', jam_selesai:'16:30'}];
 
 function initData(key, seed) { if (!localStorage.getItem(key)) save(key, seed); }
-initData(K.users, seedUsers); initData(K.tentor, seedTentor); initData(K.siswa, seedSiswa); initData(K.jadwal, seedJadwal);
+initData(K.users, seedUsers); 
+initData(K.tentor, seedTentor); 
+initData(K.siswa, seedSiswa); 
+initData(K.jadwal, seedJadwal);
+
+// MIGRASI OTOMATIS: Ubah admin lama ke akun Rico jika masih ada di localStorage
+let currentUsers = load(K.users, []);
+let oldAdmin = currentUsers.find(u => u.email === 'admin@bimbel.com');
+if (oldAdmin) {
+  oldAdmin.email = 'ricokristanto18@gmail.com';
+  oldAdmin.nama = 'Rico';
+  save(K.users, currentUsers);
+}
 
 const getUsers = () => load(K.users, []); const saveUsers = v => save(K.users, v);
 const getSiswa = () => load(K.siswa, []); const saveSiswa = v => save(K.siswa, v);
@@ -363,7 +375,7 @@ function renderAkun() {
                 <td class="px-4 py-3"><span class="px-2 py-1 text-xs rounded ${u.role==='admin'?'bg-rose-100 text-rose-700':'bg-emerald-100 text-emerald-700'}">${u.role}</span></td>
                 <td class="px-4 py-3 text-right">
                   <button onclick="resetPass('${u.id}')" class="text-blue-600 hover:bg-blue-50 px-2 py-1 rounded text-xs border border-blue-200 mr-1">Reset Pass</button>
-                  ${u.email !== 'admin@bimbel.com' ? `<button onclick="delUser('${u.id}')" class="text-red-600 hover:bg-red-50 p-1.5 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : ''}
+                  ${u.email !== 'ricokristanto18@gmail.com' ? `<button onclick="delUser('${u.id}')" class="text-red-600 hover:bg-red-50 p-1.5 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : ''}
                 </td>
               </tr>`).join('')}
           </tbody>
