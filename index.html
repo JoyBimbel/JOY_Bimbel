@@ -292,7 +292,7 @@ function renderDashboard() {
     </div>`;
 }
 
-// ================= AKUN & AKSES (FITUR BARU) =================
+// ================= AKUN & AKSES =================
 function renderAkun() {
   return `<div>
     <div class="flex justify-between items-center mb-4">
@@ -345,14 +345,20 @@ async function simpanUser(e) {
   const tempClient = supabase.createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false, autoRefreshToken: false } });
 
   try {
-    const { data, error } = await tempClient.auth.signUp({ email, password: pass });
+    // Mengirim nama dan role melalui metadata
+    const { data, error } = await tempClient.auth.signUp({ 
+      email, 
+      password: pass,
+      options: {
+        data: {
+          nama: nama,
+          role: role
+        }
+      }
+    });
     if (error) throw error;
     
-    const { error: profErr } = await supabaseClient.from('profiles').insert([{ 
-      id: data.user.id, nama: nama, role: role, email: email 
-    }]);
-    if (profErr) throw profErr;
-
+    // Tidak perlu insert manual ke tabel profiles karena sudah ditangani oleh Trigger Database otomatis
     alert("✅ Akun berhasil dibuat! User tersebut sekarang sudah bisa login.");
     closeModal();
     loadAllData({ id: DB.profile.id }); 
@@ -368,7 +374,6 @@ async function resetPass(email) {
   if (newPass.length < 6) { alert('Password terlalu pendek! Minimal 6 karakter.'); return; }
 
   try {
-    // Memanggil fungsi SQL yang sudah kita buat di Supabase (Langkah 1)
     const { error } = await supabaseClient.rpc('admin_reset_password', { 
       user_email: email, 
       new_password: newPass 
@@ -385,12 +390,11 @@ async function hapusAkun(email, nama) {
   if (!confirm(`Yakin ingin menghapus akun ${nama} (${email}) secara permanen?\n\nOrang ini tidak akan bisa login lagi.`)) return;
 
   try {
-    // Memanggil fungsi SQL yang sudah kita buat di Supabase (Langkah 1)
     const { error } = await supabaseClient.rpc('delete_user_by_admin', { user_email: email });
     if (error) throw error;
     
     alert(`✅ Akun ${nama} berhasil dihapus permanen.`);
-    loadAllData({ id: DB.profile.id }); // Refresh data user
+    loadAllData({ id: DB.profile.id }); 
   } catch (err) {
     alert("Gagal menghapus akun: " + err.message);
   }
