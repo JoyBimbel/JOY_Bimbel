@@ -139,36 +139,25 @@ const HARI = ['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'];
 async function loadLogo() {
   try {
     const { data } = await supabaseClient.from('settings').select('value').eq('key', 'logo_url').single();
-    if (data && data.value) {
-      LOGO_URL = data.value;
-      applyLogo();
-    }
+    if (data && data.value) { LOGO_URL = data.value; applyLogo(); }
   } catch (e) { console.log("Logo belum diatur."); }
 }
-
 function applyLogo() {
   if (!LOGO_URL) return;
-  
-  const loginLogo = document.getElementById('login-logo');
-  if (loginLogo) { loginLogo.src = LOGO_URL; loginLogo.classList.remove('hidden'); }
-  
-  const sidebarLogo = document.getElementById('sidebar-logo');
-  if (sidebarLogo) { sidebarLogo.src = LOGO_URL; sidebarLogo.classList.remove('hidden'); }
-  
-  const mobileLogo = document.getElementById('mobile-logo');
-  if (mobileLogo) { mobileLogo.src = LOGO_URL; mobileLogo.classList.remove('hidden'); }
-  
+  ['login-logo','sidebar-logo','mobile-logo'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.src = LOGO_URL; el.classList.remove('hidden'); }
+  });
   const favicon = document.getElementById('favicon');
-  if (favicon) { favicon.href = LOGO_URL; }
+  if (favicon) favicon.href = LOGO_URL;
 }
 
 // ================= AUTH =================
 async function checkSession() {
   try {
     const { data: { session } } = await supabaseClient.auth.getSession();
-    if (session) {
-      await loadAllData(session.user);
-    } else {
+    if (session) { await loadAllData(session.user); }
+    else {
       document.getElementById('login-page').classList.remove('hidden');
       document.getElementById('app-page').classList.add('hidden');
       document.getElementById('loading-page').classList.add('hidden');
@@ -368,12 +357,10 @@ async function uploadLogo() {
   try {
     const fileExt = file.name.split('.').pop();
     const fileName = `logo_${Date.now()}.${fileExt}`;
-    
     const { error: uploadErr } = await supabaseClient.storage.from('logo').upload(fileName, file);
     if (uploadErr) throw uploadErr;
     
     const { data: { publicUrl } } = supabaseClient.storage.from('logo').getPublicUrl(fileName);
-    
     const { error: dbErr } = await supabaseClient.from('settings').upsert({ key: 'logo_url', value: publicUrl });
     if (dbErr) throw dbErr;
     
@@ -381,7 +368,6 @@ async function uploadLogo() {
     applyLogo();
     alert('✅ Logo berhasil diperbarui!');
     renderPage();
-    
   } catch (err) {
     alert('Gagal upload logo: ' + err.message);
     btn.disabled = false;
@@ -415,28 +401,52 @@ function renderDashboard() {
     </div>`;
 }
 
-// ================= AKUN & AKSES =================
+// ================= AKUN & AKSES (RESPONSIVE) =================
 function renderAkun() {
   return `<div>
     <div class="flex justify-between items-center mb-4">
-      <div><h1 class="text-2xl font-bold">Akun & Akses</h1><p class="text-gray-500 text-sm">Kelola user yang bisa login ke sistem</p></div>
-      <button onclick="openUserForm()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Tambah Akun</button>
+      <div><h1 class="text-2xl font-bold">Akun & Akses</h1><p class="text-gray-500 text-sm">Kelola user yang bisa login</p></div>
+      <button onclick="openUserForm()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Tambah</button>
     </div>
-    <div class="bg-white rounded-xl border overflow-hidden"><table class="w-full text-sm">
-      <thead class="bg-gray-50"><tr><th class="text-left px-4 py-3">Nama</th><th class="text-left px-4 py-3">Email</th><th class="text-left px-4 py-3">Role</th><th class="text-right px-4 py-3">Aksi</th></tr></thead>
-      <tbody>${DB.users.map(u=>`
-        <tr class="border-t">
-          <td class="px-4 py-3 font-medium">${escapeHtml(u.nama)}</td>
-          <td class="px-4 py-3">${escapeHtml(u.email)}</td>
-          <td class="px-4 py-3"><span class="px-2 py-1 text-xs rounded ${u.role==='admin'?'bg-rose-100 text-rose-700':'bg-emerald-100 text-emerald-700'}">${u.role}</span></td>
-          <td class="px-4 py-3 text-right whitespace-nowrap">
-            ${u.email !== 'ricokristanto18@gmail.com' ? `
-              <button onclick="resetPass('${u.email}')" class="text-blue-600 hover:bg-blue-50 px-2 py-1 rounded text-xs border border-blue-200 mr-1">Reset Pass</button>
-              <button onclick="hapusAkun('${u.email}', '${u.nama}')" class="text-red-600 hover:bg-red-50 p-1.5 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-            ` : '<span class="text-xs text-gray-400">Admin Utama</span>'}
-          </td>
-        </tr>`).join('')}</tbody>
-    </table></div>
+    
+    <!-- Mobile Card View -->
+    <div class="md:hidden space-y-3">
+      ${DB.users.map(u=>`
+        <div class="bg-white rounded-xl border p-4">
+          <div class="flex justify-between items-start gap-2 mb-2">
+            <div class="flex-1 min-w-0">
+              <div class="font-bold truncate">${escapeHtml(u.nama)}</div>
+              <div class="text-xs text-gray-500 truncate">${escapeHtml(u.email)}</div>
+            </div>
+            <span class="px-2 py-1 text-xs rounded flex-shrink-0 ${u.role==='admin'?'bg-rose-100 text-rose-700':'bg-emerald-100 text-emerald-700'}">${u.role}</span>
+          </div>
+          ${u.email !== 'ricokristanto18@gmail.com' ? `
+          <div class="flex gap-2 pt-3 border-t mt-2">
+            <button onclick="resetPass('${u.email}')" class="flex-1 text-blue-600 bg-blue-50 py-2 rounded-lg text-xs font-semibold border border-blue-200">Reset Pass</button>
+            <button onclick="hapusAkun('${u.email}', '${u.nama}')" class="text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-200"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+          </div>` : `<div class="text-xs text-gray-400 pt-2 border-t mt-2">Admin Utama (Tidak bisa dihapus)</div>`}
+        </div>
+      `).join('')}
+    </div>
+    
+    <!-- Desktop Table View -->
+    <div class="hidden md:block bg-white rounded-xl border overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50"><tr><th class="text-left px-4 py-3">Nama</th><th class="text-left px-4 py-3">Email</th><th class="text-left px-4 py-3">Role</th><th class="text-right px-4 py-3">Aksi</th></tr></thead>
+        <tbody>${DB.users.map(u=>`
+          <tr class="border-t">
+            <td class="px-4 py-3 font-medium">${escapeHtml(u.nama)}</td>
+            <td class="px-4 py-3">${escapeHtml(u.email)}</td>
+            <td class="px-4 py-3"><span class="px-2 py-1 text-xs rounded ${u.role==='admin'?'bg-rose-100 text-rose-700':'bg-emerald-100 text-emerald-700'}">${u.role}</span></td>
+            <td class="px-4 py-3 text-right whitespace-nowrap">
+              ${u.email !== 'ricokristanto18@gmail.com' ? `
+                <button onclick="resetPass('${u.email}')" class="text-blue-600 hover:bg-blue-50 px-2 py-1 rounded text-xs border border-blue-200 mr-1">Reset Pass</button>
+                <button onclick="hapusAkun('${u.email}', '${u.nama}')" class="text-red-600 hover:bg-red-50 p-1.5 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              ` : '<span class="text-xs text-gray-400">Admin Utama</span>'}
+            </td>
+          </tr>`).join('')}</tbody>
+      </table>
+    </div>
   </div>`;
 }
 
@@ -464,7 +474,6 @@ async function simpanUser(e) {
   const pass = f.password.value;
   const nama = f.nama.value;
   const role = f.role.value;
-
   const tempClient = supabase.createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false, autoRefreshToken: false } });
 
   try {
@@ -473,26 +482,21 @@ async function simpanUser(e) {
       options: { data: { nama: nama, role: role } }
     });
     if (error) throw error;
-    alert("✅ Akun berhasil dibuat! User tersebut sekarang sudah bisa login.");
+    alert("✅ Akun berhasil dibuat!");
     closeModal();
     loadAllData({ id: DB.profile.id }); 
-  } catch (err) {
-    alert("Gagal membuat akun: " + err.message);
-  }
+  } catch (err) { alert("Gagal membuat akun: " + err.message); }
 }
 
 async function resetPass(email) {
   const newPass = prompt(`Masukkan password baru untuk akun ${email}:\n(Minimal 6 karakter)`);
   if (!newPass) return;
   if (newPass.length < 6) { alert('Password terlalu pendek! Minimal 6 karakter.'); return; }
-
   try {
     const { error } = await supabaseClient.rpc('admin_reset_password', { user_email: email, new_password: newPass });
     if (error) throw error;
-    alert(`✅ Password untuk ${email} berhasil diubah menjadi: ${newPass}\n\nSilakan beritahu password baru ini kepada yang bersangkutan.`);
-  } catch (err) {
-    alert("Gagal mereset password: " + err.message);
-  }
+    alert(`✅ Password untuk ${email} berhasil diubah menjadi: ${newPass}`);
+  } catch (err) { alert("Gagal mereset password: " + err.message); }
 }
 
 async function hapusAkun(email, nama) {
@@ -502,16 +506,13 @@ async function hapusAkun(email, nama) {
     if (error) throw error;
     alert(`✅ Akun ${nama} berhasil dihapus permanen.`);
     loadAllData({ id: DB.profile.id }); 
-  } catch (err) {
-    alert("Gagal menghapus akun: " + err.message);
-  }
+  } catch (err) { alert("Gagal menghapus akun: " + err.message); }
 }
 
 // ================= LAPORAN TENTOR =================
 function renderLaporanTentor() {
   const role = DB.profile ? DB.profile.role : 'tentor';
   const myTentorId = getMyTentorId();
-  
   let list = [];
   if (role === 'admin') { list = DB.laporan; }
   else if (role === 'tentor') { list = myTentorId ? DB.laporan.filter(l => l.tentor_id === myTentorId) : []; }
@@ -519,7 +520,7 @@ function renderLaporanTentor() {
   return `<div>
     <div class="flex justify-between items-center mb-4">
       <h1 class="text-2xl font-bold">Laporan Mengajar</h1>
-      ${role==='tentor'?`<button onclick="openLaporanForm()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm">+ Buat Laporan</button>`:''}
+      ${role==='tentor'?`<button onclick="openLaporanForm()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Buat</button>`:''}
     </div>
     ${list.length === 0 ? '<div class="text-center text-gray-400 py-8 bg-white border rounded-xl">Belum ada laporan.</div>' : 
     `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -534,8 +535,8 @@ function renderLaporanTentor() {
             <p class="text-sm text-gray-700">${escapeHtml(l.catatan)}</p>
           </div>
           <div class="absolute bottom-3 right-3 flex gap-1 bg-white p-1 rounded-lg shadow-sm border">
-            <button onclick="openLaporanForm('${l.id}')" class="text-blue-600 p-1.5 hover:bg-blue-50 rounded" title="Edit Laporan"><i data-lucide="pencil" class="w-4 h-4"></i></button>
-            <button onclick="hapusLaporan('${l.id}')" class="text-red-600 p-1.5 hover:bg-red-50 rounded" title="Hapus Laporan"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+            <button onclick="openLaporanForm('${l.id}')" class="text-blue-600 p-2 hover:bg-blue-50 rounded"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+            <button onclick="hapusLaporan('${l.id}')" class="text-red-600 p-2 hover:bg-red-50 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
           </div>
         </div>`; 
       }).join('')}
@@ -564,11 +565,8 @@ function openLaporanForm(id) {
   openModal(editing ? 'Edit Laporan' : 'Buat Laporan', body, async (e) => {
     const f = e.target; 
     const file = document.getElementById('foto-input').files[0];
-    
     if (!file && !editing) { alert('Pilih foto terlebih dahulu!'); return; }
-
     let fotoUrl = editing ? editing.foto : null;
-
     if (file) {
       const fileName = `laporan/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
       const { error: err } = await supabaseClient.storage.from('foto_laporan').upload(fileName, file);
@@ -576,15 +574,10 @@ function openLaporanForm(id) {
       const { data: { publicUrl } } = supabaseClient.storage.from('foto_laporan').getPublicUrl(fileName);
       fotoUrl = publicUrl;
     }
-    
     const myTentorId = getMyTentorId() || DB.tentor[0]?.id;
     const data = { tentor_id: editing ? editing.tentor_id : myTentorId, siswa_id: f.siswa_id.value, tanggal: f.tanggal.value, mapel: f.mapel.value, catatan: f.catatan.value, foto: fotoUrl };
-
-    if (editing) {
-      await supabaseClient.from('laporan').update(data).eq('id', editing.id);
-    } else {
-      await supabaseClient.from('laporan').insert([data]);
-    }
+    if (editing) { await supabaseClient.from('laporan').update(data).eq('id', editing.id); }
+    else { await supabaseClient.from('laporan').insert([data]); }
     closeModal();
   });
 }
@@ -594,24 +587,50 @@ async function hapusLaporan(id) {
   await supabaseClient.from('laporan').delete().eq('id', id);
 }
 
-// ================= INVOICE SYSTEM (UPDATED) =================
+// ================= INVOICE (RESPONSIVE) =================
 function renderInvoice() {
   const inv = DB.invoice;
   const siswas = DB.siswa, tentors = DB.tentor;
   return `<div>
     <div class="flex justify-between items-center mb-4">
       <div><h1 class="text-2xl font-bold">Invoice & Slip Gaji</h1><p class="text-gray-500 text-sm">${inv.length} total data</p></div>
-      <button onclick="openInvoiceForm()" class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Buat Baru</button>
+      <button onclick="openInvoiceForm()" class="bg-rose-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Buat</button>
     </div>
-    <div class="bg-white rounded-xl border overflow-hidden">
+    
+    <!-- Mobile Card View -->
+    <div class="md:hidden space-y-3">
+      ${inv.length === 0 ? '<div class="text-center text-gray-400 py-8 bg-white border rounded-xl">Belum ada data.</div>' : 
+      inv.map(i=>{
+        const target = i.jenis==='siswa' ? siswas.find(x=>x.id===i.untuk_id) : tentors.find(x=>x.id===i.untuk_id);
+        return `<div class="bg-white rounded-xl border p-4">
+          <div class="flex justify-between items-start mb-2">
+            <div class="flex-1 min-w-0">
+              <div class="font-mono text-xs text-gray-500 mb-1">${escapeHtml(i.no_invoice)}</div>
+              <div class="font-bold truncate">${escapeHtml(target?.nama||'-')}</div>
+            </div>
+            <span class="text-xs px-2 py-1 rounded flex-shrink-0 ${i.jenis==='siswa'?'bg-orange-100 text-orange-700':'bg-amber-100 text-amber-700'}">${i.jenis==='siswa'?'Siswa':'Tentor'}</span>
+          </div>
+          <div class="text-sm space-y-1 py-2 border-t">
+            <div class="flex justify-between"><span class="text-gray-500">Periode:</span><span>${escapeHtml(i.periode||'-')}</span></div>
+            <div class="flex justify-between"><span class="text-gray-500">Total:</span><span class="font-bold text-orange-600">${rupiah(i.total)}</span></div>
+            <div class="flex justify-between"><span class="text-gray-500">Status:</span><span class="text-xs px-2 py-0.5 rounded ${i.status==='lunas'?'bg-emerald-100 text-emerald-700':'bg-rose-100 text-rose-700'}">${i.status==='lunas'?'Lunas':'Belum Bayar'}</span></div>
+          </div>
+          <div class="flex gap-2 pt-3 border-t mt-2">
+            <button onclick="openInvoiceDetail('${i.id}')" class="flex-1 text-orange-600 bg-orange-50 py-2 rounded-lg text-xs font-semibold border border-orange-200 flex items-center justify-center gap-1"><i data-lucide="eye" class="w-3 h-3"></i> Lihat</button>
+            <button onclick="openInvoiceForm('${i.id}')" class="text-blue-600 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+            <button onclick="deleteRecord('invoice','${i.id}')" class="text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-200"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    
+    <!-- Desktop Table View -->
+    <div class="hidden md:block bg-white rounded-xl border overflow-hidden">
       <table class="w-full text-sm">
         <thead class="bg-gray-50 text-gray-600"><tr>
-          <th class="text-left px-4 py-3">No Dokumen</th>
-          <th class="text-left px-4 py-3">Jenis</th>
-          <th class="text-left px-4 py-3">Penerima</th>
-          <th class="text-left px-4 py-3">Periode</th>
-          <th class="text-left px-4 py-3">Total</th>
-          <th class="text-left px-4 py-3">Status</th>
+          <th class="text-left px-4 py-3">No Dokumen</th><th class="text-left px-4 py-3">Jenis</th>
+          <th class="text-left px-4 py-3">Penerima</th><th class="text-left px-4 py-3">Periode</th>
+          <th class="text-left px-4 py-3">Total</th><th class="text-left px-4 py-3">Status</th>
           <th class="text-right px-4 py-3">Aksi</th>
         </tr></thead>
         <tbody>
@@ -681,18 +700,9 @@ function openInvoiceForm(id) {
     });
     if (items.length === 0) { alert('Minimal 1 item harus diisi'); return; }
     const total = items.reduce((a,it)=>a+it.qty*it.harga, 0);
-    
-    const data = {
-      jenis: f.jenis.value, untuk_id: f.untuk_id.value, periode: f.periode.value.trim(),
-      items: items, total: total, status: f.status.value,
-    };
-
-    if (editing) {
-      await supabaseClient.from('invoice').update(data).eq('id', editing.id);
-    } else {
-      const no = `INV-${new Date().getFullYear()}-${Math.floor(Math.random()*1000)}`;
-      await supabaseClient.from('invoice').insert([{ no_invoice: no, ...data, tanggal: todayISO() }]);
-    }
+    const data = { jenis: f.jenis.value, untuk_id: f.untuk_id.value, periode: f.periode.value.trim(), items: items, total: total, status: f.status.value };
+    if (editing) { await supabaseClient.from('invoice').update(data).eq('id', editing.id); }
+    else { const no = `INV-${new Date().getFullYear()}-${Math.floor(Math.random()*1000)}`; await supabaseClient.from('invoice').insert([{ no_invoice: no, ...data, tanggal: todayISO() }]); }
     closeModal();
   });
 
@@ -707,9 +717,7 @@ function refreshRecipients(jenis, selectedId) {
   if (!sel) return;
   const data = jenis === 'siswa' ? DB.siswa : DB.tentor;
   sel.innerHTML = '<option value="">— Pilih —</option>' + data.map(d => `
-    <option value="${d.id}" ${d.id===selectedId?'selected':''}>
-      ${escapeHtml(jenis==='siswa' ? `${d.nama} (${d.nama_orang_tua||'-'})` : `${d.nama} - ${d.mapel||'-'}`)}
-    </option>`).join('');
+    <option value="${d.id}" ${d.id===selectedId?'selected':''}>${escapeHtml(jenis==='siswa' ? `${d.nama} (${d.nama_orang_tua||'-'})` : `${d.nama} - ${d.mapel||'-'}`)}</option>`).join('');
 }
 
 function addItemRow(item) {
@@ -719,9 +727,9 @@ function addItemRow(item) {
   const div = document.createElement('div');
   div.className = 'item-row flex gap-2 items-start';
   div.innerHTML = `
-    <input class="item-desk flex-1 border rounded-lg px-2 py-1.5 text-sm" placeholder="Deskripsi (misal: SPP Bulan Ini)" value="${escapeHtml(it.deskripsi)}" />
-    <input class="item-qty w-16 border rounded-lg px-2 py-1.5 text-sm" type="number" min="1" placeholder="Qty" value="${it.qty}" oninput="updateInvoiceTotal()" />
-    <input class="item-harga w-28 border rounded-lg px-2 py-1.5 text-sm" type="number" min="0" placeholder="Harga" value="${it.harga}" oninput="updateInvoiceTotal()" />
+    <input class="item-desk flex-1 border rounded-lg px-2 py-1.5 text-sm" placeholder="Deskripsi" value="${escapeHtml(it.deskripsi)}" />
+    <input class="item-qty w-14 border rounded-lg px-2 py-1.5 text-sm" type="number" min="1" placeholder="Qty" value="${it.qty}" oninput="updateInvoiceTotal()" />
+    <input class="item-harga w-24 border rounded-lg px-2 py-1.5 text-sm" type="number" min="0" placeholder="Harga" value="${it.harga}" oninput="updateInvoiceTotal()" />
     <button type="button" onclick="this.parentElement.remove(); updateInvoiceTotal();" class="text-red-500 hover:bg-red-50 p-1.5 rounded font-bold">✕</button>
   `;
   container.appendChild(div);
@@ -739,16 +747,13 @@ function updateInvoiceTotal() {
   if (el) el.textContent = rupiah(total);
 }
 
-// ================= DETAIL & WHATSAPP (UPDATED) =================
 function openInvoiceDetail(id) {
   const inv = DB.invoice.find(x=>x.id===id);
   if (!inv) return;
   const target = inv.jenis==='siswa' ? DB.siswa.find(x=>x.id===inv.untuk_id) : DB.tentor.find(x=>x.id===inv.untuk_id);
-  
   const waNumber = formatWa(target?.no_wa || '');
   const waNama = inv.jenis==='siswa' ? (target?.nama_orang_tua||target?.nama||'') : (target?.nama||'');
   
-  // LOGIKA PESAN WHATSAPP
   let waMsgText = "";
   if (inv.jenis === 'tentor') {
     waMsgText = `Halo ${waNama},\n\nBerikut slip gaji *${inv.no_invoice}* periode *${inv.periode}* dengan total *${rupiah(inv.total)}*.\n\nStatus: Sudah Dibayarkan / LUNAS\n\nTerima kasih 🙏\nJoy Bimbel`;
@@ -759,16 +764,13 @@ function openInvoiceDetail(id) {
       waMsgText = `Halo Bpk/Ibu ${waNama},\n\nBerikut tagihan *${inv.no_invoice}* periode *${inv.periode}* dengan total *${rupiah(inv.total)}*.\n\nStatus: BELUM BAYAR\n\n*Pembayaran dapat ditransfer ke:*\nBNI: 2079385983\nBCA: 4720524304\nBRI: 180701015922501\na.n. Joice Zhenrike Memmase\n\nTerima kasih 🙏\nJoy Bimbel`;
     }
   }
-  
   const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(waMsgText)}`;
 
   const body = `
-    <div class="overflow-x-auto">
-      ${buildInvoiceHTML(inv, target)}
-    </div>
+    <div class="overflow-x-auto">${buildInvoiceHTML(inv, target)}</div>
     <div class="flex flex-wrap gap-2 mt-4 pt-4 border-t print:hidden">
       <button onclick="printInvoice('${id}')" class="flex-1 bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 font-semibold">🖨️ Cetak PDF</button>
-      <a href="${waUrl}" target="_blank" class="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-center font-semibold">📱 Kirim WhatsApp</a>
+      <a href="${waUrl}" target="_blank" class="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-center font-semibold">📱 Kirim WA</a>
     </div>
   `;
   openModal('Detail Dokumen', body);
@@ -778,25 +780,16 @@ function buildInvoiceHTML(inv, target) {
   const namaPenerima = inv.jenis==='siswa'
     ? `${target?.nama_orang_tua || '-'}<br/><span class="text-sm text-gray-600">Siswa: ${target?.nama || '-'}</span>`
     : `${target?.nama || '-'}<br/><span class="text-sm text-gray-600">${target?.mapel || '-'}</span>`;
-  
   let itemsArr = inv.items;
   if (!Array.isArray(itemsArr)) itemsArr = [];
-
-  // LOGIKA JUDUL DAN HEADER
+  
   let docTitle = 'INVOICE';
   let headerLabel = 'Ditagihkan kepada:';
   let showBank = false;
-
-  if (inv.jenis === 'tentor') {
-    docTitle = 'SLIP GAJI';
-    headerLabel = 'Pembayaran kepada :';
-  } else if (inv.jenis === 'siswa') {
-    if (inv.status === 'lunas') {
-      headerLabel = 'Pelunasan oleh :';
-    } else {
-      headerLabel = 'Ditagihkan kepada:';
-      showBank = true; // Hanya tampilkan bank jika belum bayar
-    }
+  if (inv.jenis === 'tentor') { docTitle = 'SLIP GAJI'; headerLabel = 'Pembayaran kepada :'; }
+  else if (inv.jenis === 'siswa') {
+    if (inv.status === 'lunas') { headerLabel = 'Pelunasan oleh :'; }
+    else { headerLabel = 'Ditagihkan kepada:'; showBank = true; }
   }
 
   return `
@@ -804,52 +797,46 @@ function buildInvoiceHTML(inv, target) {
       <div class="flex justify-between items-start border-b pb-4 mb-4">
         <div>
           ${LOGO_URL ? `<img src="${LOGO_URL}" class="h-12 mb-2 object-contain" />` : ''}
-          <h2 class="text-3xl font-bold text-orange-600">JOY BIMBEL</h2>
+          <h2 class="text-2xl md:text-3xl font-bold text-orange-600">JOY BIMBEL</h2>
           <p class="text-sm text-gray-600 mt-1">Telp: 081353206612</p>
         </div>
         <div class="text-right">
-          <p class="font-bold text-2xl">${docTitle}</p>
-          <p class="font-mono text-sm mt-1">${escapeHtml(inv.no_invoice)}</p>
-          <p class="text-sm text-gray-600">${escapeHtml(inv.tanggal)}</p>
+          <p class="font-bold text-xl md:text-2xl">${docTitle}</p>
+          <p class="font-mono text-xs md:text-sm mt-1">${escapeHtml(inv.no_invoice)}</p>
+          <p class="text-xs md:text-sm text-gray-600">${escapeHtml(inv.tanggal)}</p>
         </div>
       </div>
-      
       <div class="mb-6 text-sm">
         <p class="text-xs text-gray-500 uppercase font-bold">${headerLabel}</p>
         <p class="font-bold text-lg mt-1">${namaPenerima}</p>
         <p class="text-sm text-gray-600 mt-1">Periode: ${escapeHtml(inv.periode)}</p>
       </div>
-      
-      <table class="w-full text-sm border-collapse mb-6">
+      <table class="w-full text-xs md:text-sm border-collapse mb-6">
         <thead><tr class="border-b-2 border-gray-300">
-          <th class="text-left py-2 px-2">Deskripsi</th>
-          <th class="text-center py-2 px-2">Qty</th>
-          <th class="text-right py-2 px-2">Harga</th>
-          <th class="text-right py-2 px-2">Subtotal</th>
+          <th class="text-left py-2 px-1 md:px-2">Deskripsi</th>
+          <th class="text-center py-2 px-1 md:px-2">Qty</th>
+          <th class="text-right py-2 px-1 md:px-2">Harga</th>
+          <th class="text-right py-2 px-1 md:px-2">Subtotal</th>
         </tr></thead>
         <tbody>
           ${itemsArr.map(it=>`
             <tr class="border-b">
-              <td class="py-2 px-2">${escapeHtml(it.deskripsi)}</td>
-              <td class="text-center py-2 px-2">${it.qty}</td>
-              <td class="text-right py-2 px-2">${rupiah(it.harga)}</td>
-              <td class="text-right py-2 px-2">${rupiah(it.qty*it.harga)}</td>
+              <td class="py-2 px-1 md:px-2">${escapeHtml(it.deskripsi)}</td>
+              <td class="text-center py-2 px-1 md:px-2">${it.qty}</td>
+              <td class="text-right py-2 px-1 md:px-2">${rupiah(it.harga)}</td>
+              <td class="text-right py-2 px-1 md:px-2">${rupiah(it.qty*it.harga)}</td>
             </tr>`).join('')}
         </tbody>
       </table>
-      
       <div class="flex justify-end mt-4">
         <div class="text-right">
           <p class="text-sm text-gray-500">Total</p>
-          <p class="text-3xl font-bold text-orange-600">${rupiah(inv.total)}</p>
-          <p class="text-sm mt-1 ${inv.status==='lunas'?'text-emerald-600':'text-rose-600'} font-bold">
-            ${inv.status==='lunas'?'✅ LUNAS':'⏳ BELUM BAYAR'}
-          </p>
+          <p class="text-2xl md:text-3xl font-bold text-orange-600">${rupiah(inv.total)}</p>
+          <p class="text-sm mt-1 ${inv.status==='lunas'?'text-emerald-600':'text-rose-600'} font-bold">${inv.status==='lunas'?'✅ LUNAS':'⏳ BELUM BAYAR'}</p>
         </div>
       </div>
-      
       ${showBank ? `
-      <div class="mt-10 pt-4 border-t border-gray-300 text-sm text-gray-700">
+      <div class="mt-8 pt-4 border-t border-gray-300 text-sm text-gray-700">
         <p class="font-bold mb-2">Silakan lakukan pembayaran ke salah satu rekening berikut:</p>
         <ul class="list-disc list-inside space-y-1 ml-2">
           <li><b>BNI:</b> 2079385983</li>
@@ -857,12 +844,8 @@ function buildInvoiceHTML(inv, target) {
           <li><b>BRI:</b> 180701015922501</li>
         </ul>
         <p class="mt-2 font-semibold">Atas Nama (a.n.): Joice Zhenrike Memmase</p>
-      </div>
-      ` : ''}
-      
-      <div class="mt-6 text-xs text-gray-500">
-        <p>Terima kasih atas kepercayaan Anda 🙏</p>
-      </div>
+      </div>` : ''}
+      <div class="mt-6 text-xs text-gray-500"><p>Terima kasih atas kepercayaan Anda 🙏</p></div>
     </div>`;
 }
 
@@ -870,27 +853,21 @@ function printInvoice(id) {
   const inv = DB.invoice.find(x=>x.id===id);
   if (!inv) return;
   const target = inv.jenis==='siswa' ? DB.siswa.find(x=>x.id===inv.untuk_id) : DB.tentor.find(x=>x.id===inv.untuk_id);
-  
   const printArea = document.getElementById('print-area');
   printArea.innerHTML = buildInvoiceHTML(inv, target);
-  
-  setTimeout(() => {
-    window.print();
-    setTimeout(() => { printArea.innerHTML = ''; }, 1000);
-  }, 100);
+  setTimeout(() => { window.print(); setTimeout(() => { printArea.innerHTML = ''; }, 1000); }, 100);
 }
 
-// ================= LAPORAN KEUANGAN & BACKUP =================
+// ================= LAPORAN KEUANGAN =================
 function renderLaporanKeuangan() {
   const inv = DB.invoice;
   const pemasukan = inv.filter(i=>i.jenis==='siswa' && i.status==='lunas').reduce((a,b)=>a+b.total,0);
   const pengeluaran = inv.filter(i=>i.jenis==='tentor' && i.status==='lunas').reduce((a,b)=>a+b.total,0);
-  
   return `<div>
     <h1 class="text-2xl font-bold mb-4">Laporan Keuangan</h1>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-      <div class="bg-white p-4 rounded border"><div class="text-xs text-gray-500 mb-1">Total Pemasukan Lunas (Siswa)</div><div class="text-xl font-bold text-emerald-600">${rupiah(pemasukan)}</div></div>
-      <div class="bg-white p-4 rounded border"><div class="text-xs text-gray-500 mb-1">Total Gaji Dibayar (Tentor)</div><div class="text-xl font-bold text-rose-600">${rupiah(pengeluaran)}</div></div>
+      <div class="bg-white p-4 rounded border"><div class="text-xs text-gray-500 mb-1">Total Pemasukan Lunas</div><div class="text-xl font-bold text-emerald-600">${rupiah(pemasukan)}</div></div>
+      <div class="bg-white p-4 rounded border"><div class="text-xs text-gray-500 mb-1">Total Gaji Dibayar</div><div class="text-xl font-bold text-rose-600">${rupiah(pengeluaran)}</div></div>
       <div class="bg-white p-4 rounded border"><div class="text-xs text-gray-500 mb-1">Saldo Bersih</div><div class="text-xl font-bold text-orange-600">${rupiah(pemasukan - pengeluaran)}</div></div>
     </div>
   </div>`;
@@ -900,12 +877,41 @@ function renderBackup() {
   return `<div><h1 class="text-2xl font-bold mb-4">Backup Data (CSV)</h1><p class="text-sm text-gray-500">Data tersimpan aman di Supabase Cloud.</p></div>`;
 }
 
-// ================= CRUD SISWA =================
+// ================= CRUD SISWA (RESPONSIVE) =================
 function renderSiswa() {
   const role = DB.profile ? DB.profile.role : 'tentor';
   return `<div>
-    <div class="flex justify-between items-center mb-4"><h1 class="text-2xl font-bold">Daftar Siswa</h1>${role==='admin'?`<button onclick="openSiswaForm()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Tambah Siswa</button>`:''}</div>
-    <div class="bg-white rounded-xl border overflow-hidden">
+    <div class="flex justify-between items-center mb-4">
+      <div><h1 class="text-2xl font-bold">Daftar Siswa</h1><p class="text-gray-500 text-sm">${DB.siswa.length} siswa terdaftar</p></div>
+      ${role==='admin'?`<button onclick="openSiswaForm()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Tambah</button>`:''}
+    </div>
+    
+    <!-- Mobile Card View -->
+    <div class="md:hidden space-y-3">
+      ${DB.siswa.length === 0 ? '<div class="text-center text-gray-400 py-8 bg-white border rounded-xl">Belum ada siswa.</div>' : 
+      DB.siswa.map(s=>`
+        <div class="bg-white rounded-xl border p-4">
+          <div class="flex justify-between items-start gap-2 mb-2">
+            <div class="flex-1 min-w-0">
+              <div class="font-bold text-base truncate">${escapeHtml(s.nama)}</div>
+              <div class="text-xs text-gray-500">Kelas ${escapeHtml(s.kelas || '-')}</div>
+            </div>
+            ${role==='admin'?`
+            <div class="flex gap-1 flex-shrink-0">
+              <button onclick="openSiswaForm('${s.id}')" class="text-orange-600 p-2.5 bg-orange-50 hover:bg-orange-100 rounded-lg border border-orange-200" title="Edit"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+              <button onclick="deleteRecord('siswa','${s.id}')" class="text-red-600 p-2.5 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200" title="Hapus"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+            </div>`:''}
+          </div>
+          <div class="text-sm space-y-1.5 pt-2 border-t">
+            <div class="flex gap-2"><span class="text-gray-500 flex-shrink-0 w-12">Ortu:</span><span class="font-medium">${escapeHtml(s.nama_orang_tua||'-')}</span></div>
+            <div class="flex gap-2"><span class="text-gray-500 flex-shrink-0 w-12">WA:</span><span>${escapeHtml(s.no_wa || '-')}</span></div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    
+    <!-- Desktop Table View -->
+    <div class="hidden md:block bg-white rounded-xl border overflow-hidden">
       <table class="w-full text-sm">
         <thead class="bg-gray-50">
           <tr>
@@ -937,14 +943,7 @@ function renderSiswa() {
 
 async function simpanSiswa(e) {
   const f = e.target; const id = f.dataset.id;
-  const data = { 
-    nama: f.nama.value, 
-    kelas: f.kelas.value, 
-    nama_orang_tua: f.nama_orang_tua.value, 
-    no_wa: f.no_wa.value, 
-    tentor_id: f.tentor_id.value || null, 
-    aktif: true 
-  };
+  const data = { nama: f.nama.value, kelas: f.kelas.value, nama_orang_tua: f.nama_orang_tua.value, no_wa: f.no_wa.value, tentor_id: f.tentor_id.value || null, aktif: true };
   if (id) await supabaseClient.from('siswa').update(data).eq('id', id);
   else await supabaseClient.from('siswa').insert([data]);
   closeModal();
@@ -964,13 +963,54 @@ function openSiswaForm(id) {
   openModal(editing?'Edit Siswa':'Tambah Siswa', body, simpanSiswa);
 }
 
-// ================= CRUD TENTOR =================
+// ================= CRUD TENTOR (RESPONSIVE) =================
 function renderTentor() {
   return `<div>
-    <div class="flex justify-between items-center mb-4"><h1 class="text-2xl font-bold">Daftar Tentor</h1><button onclick="openTentorForm()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Tambah Tentor</button></div>
-    <div class="bg-white rounded-xl border overflow-hidden"><table class="w-full text-sm"><thead class="bg-gray-50"><tr><th class="text-left px-4 py-3">Nama</th><th class="text-left px-4 py-3">Mapel</th><th class="text-left px-4 py-3">Email</th><th class="text-right px-4 py-3">Aksi</th></tr></thead>
-      <tbody>${DB.tentor.map(t=>`<tr class="border-t"><td class="px-4 py-3 font-medium">${escapeHtml(t.nama)}</td><td class="px-4 py-3">${escapeHtml(t.mapel)}</td><td class="px-4 py-3">${escapeHtml(t.email)}</td><td class="px-4 py-3 text-right"><button onclick="openTentorForm('${t.id}')" class="text-orange-600 p-1.5 hover:bg-orange-50 rounded"><i data-lucide="pencil" class="w-4 h-4"></i></button><button onclick="deleteRecord('tentor','${t.id}')" class="text-red-600 p-1.5 hover:bg-red-50 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td></tr>`).join('')}</tbody>
-    </table></div>
+    <div class="flex justify-between items-center mb-4">
+      <div><h1 class="text-2xl font-bold">Daftar Tentor</h1><p class="text-gray-500 text-sm">${DB.tentor.length} tentor terdaftar</p></div>
+      <button onclick="openTentorForm()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Tambah</button>
+    </div>
+    
+    <!-- Mobile Card View -->
+    <div class="md:hidden space-y-3">
+      ${DB.tentor.length === 0 ? '<div class="text-center text-gray-400 py-8 bg-white border rounded-xl">Belum ada tentor.</div>' : 
+      DB.tentor.map(t=>`
+        <div class="bg-white rounded-xl border p-4">
+          <div class="flex justify-between items-start gap-2 mb-2">
+            <div class="flex-1 min-w-0">
+              <div class="font-bold text-base truncate">${escapeHtml(t.nama)}</div>
+              <div class="text-xs text-gray-500">${escapeHtml(t.mapel || '-')}</div>
+            </div>
+            <div class="flex gap-1 flex-shrink-0">
+              <button onclick="openTentorForm('${t.id}')" class="text-orange-600 p-2.5 bg-orange-50 hover:bg-orange-100 rounded-lg border border-orange-200"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+              <button onclick="deleteRecord('tentor','${t.id}')" class="text-red-600 p-2.5 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+            </div>
+          </div>
+          <div class="text-sm pt-2 border-t">
+            <div class="flex gap-2"><span class="text-gray-500 flex-shrink-0 w-12">Email:</span><span class="truncate">${escapeHtml(t.email || '-')}</span></div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    
+    <!-- Desktop Table View -->
+    <div class="hidden md:block bg-white rounded-xl border overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50"><tr>
+          <th class="text-left px-4 py-3">Nama</th><th class="text-left px-4 py-3">Mapel</th>
+          <th class="text-left px-4 py-3">Email</th><th class="text-right px-4 py-3">Aksi</th>
+        </tr></thead>
+        <tbody>${DB.tentor.map(t=>`<tr class="border-t">
+          <td class="px-4 py-3 font-medium">${escapeHtml(t.nama)}</td>
+          <td class="px-4 py-3">${escapeHtml(t.mapel)}</td>
+          <td class="px-4 py-3">${escapeHtml(t.email)}</td>
+          <td class="px-4 py-3 text-right">
+            <button onclick="openTentorForm('${t.id}')" class="text-orange-600 p-1.5 hover:bg-orange-50 rounded"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+            <button onclick="deleteRecord('tentor','${t.id}')" class="text-red-600 p-1.5 hover:bg-red-50 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+          </td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>
   </div>`;
 }
 async function simpanTentor(e) {
@@ -992,21 +1032,16 @@ function openTentorForm(id) {
   openModal(editing?'Edit Tentor':'Tambah Tentor', body, simpanTentor);
 }
 
-// ================= JADWAL DENGAN PEMISAH PER SISWA =================
+// ================= JADWAL =================
 function renderJadwal() {
   const role = DB.profile ? DB.profile.role : 'tentor';
   const myTentorId = getMyTentorId();
-  
   let filteredJadwal = [];
   if (role === 'admin') { filteredJadwal = DB.jadwal; }
   else if (role === 'tentor') { filteredJadwal = myTentorId ? DB.jadwal.filter(j => j.tentor_id === myTentorId) : []; }
 
   const grouped = {};
-  filteredJadwal.forEach(j => {
-    if (!grouped[j.siswa_id]) grouped[j.siswa_id] = [];
-    grouped[j.siswa_id].push(j);
-  });
-
+  filteredJadwal.forEach(j => { if (!grouped[j.siswa_id]) grouped[j.siswa_id] = []; grouped[j.siswa_id].push(j); });
   const sortedSiswaIds = Object.keys(grouped).sort((a, b) => {
     const nameA = DB.siswa.find(x=>x.id===a)?.nama || '';
     const nameB = DB.siswa.find(x=>x.id===b)?.nama || '';
@@ -1016,59 +1051,41 @@ function renderJadwal() {
   return `<div>
     <div class="flex justify-between items-center mb-4">
       <h1 class="text-2xl font-bold">Jadwal Bimbel</h1>
-      ${role==='admin'?`<button onclick="openJadwalForm()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Tambah Jadwal</button>`:''}
+      ${role==='admin'?`<button onclick="openJadwalForm()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Tambah</button>`:''}
     </div>
-    
     ${sortedSiswaIds.length === 0 ? '<div class="text-center text-gray-400 py-8 bg-white border rounded-xl">Belum ada jadwal.</div>' : 
     `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       ${sortedSiswaIds.map(siswaId => {
         const s = DB.siswa.find(x=>x.id===siswaId) || {};
         const jadwalSiswa = grouped[siswaId];
         jadwalSiswa.sort((a, b) => {
-          const dayA = HARI.indexOf(a.hari);
-          const dayB = HARI.indexOf(b.hari);
+          const dayA = HARI.indexOf(a.hari), dayB = HARI.indexOf(b.hari);
           if (dayA !== dayB) return dayA - dayB;
           return (a.jam_mulai || '').localeCompare(b.jam_mulai || '');
         });
-
-        return `
-          <div class="bg-white rounded-xl border shadow-sm overflow-hidden flex flex-col">
-            <div class="bg-orange-50 px-4 py-3 border-b border-orange-100 flex items-center gap-2">
-              <i data-lucide="user" class="w-5 h-5 text-orange-600"></i>
-              <h2 class="font-bold text-lg text-orange-800">${escapeHtml(s.nama || 'Siswa Terhapus')}</h2>
-            </div>
-            <div class="p-4 flex-1 space-y-3">
-              ${jadwalSiswa.map(j => {
-                const t = DB.tentor.find(x=>x.id===j.tentor_id) || {};
-                return `
-                  <div class="bg-gray-50 rounded-lg p-3 border flex justify-between items-center relative group">
-                    <div>
-                      <div class="font-semibold text-gray-800 flex items-center gap-1">
-                        <i data-lucide="calendar" class="w-3 h-3 text-gray-500"></i> ${j.hari}
-                      </div>
-                      <div class="text-sm text-gray-600 mt-0.5 flex items-center gap-1">
-                        <i data-lucide="clock" class="w-3 h-3 text-gray-500"></i> ${j.jam_mulai} - ${j.jam_selesai}
-                      </div>
-                      <div class="text-xs text-orange-600 mt-1 font-medium">
-                        Tentor: ${escapeHtml(t.nama || '-')}
-                      </div>
-                    </div>
-                    ${role==='admin'?`
-                      <button onclick="deleteRecord('jadwal','${j.id}')" class="text-red-400 hover:text-red-600 p-1.5 rounded hover:bg-red-50 transition opacity-0 group-hover:opacity-100" title="Hapus Jadwal">
-                        <i data-lucide="trash-2" class="w-4 h-4"></i>
-                      </button>
-                    `:''}
-                  </div>
-                `;
-              }).join('')}
-            </div>
+        return `<div class="bg-white rounded-xl border shadow-sm overflow-hidden flex flex-col">
+          <div class="bg-orange-50 px-4 py-3 border-b border-orange-100 flex items-center gap-2">
+            <i data-lucide="user" class="w-5 h-5 text-orange-600"></i>
+            <h2 class="font-bold text-lg text-orange-800 truncate">${escapeHtml(s.nama || 'Siswa Terhapus')}</h2>
           </div>
-        `;
+          <div class="p-4 flex-1 space-y-3">
+            ${jadwalSiswa.map(j => {
+              const t = DB.tentor.find(x=>x.id===j.tentor_id) || {};
+              return `<div class="bg-gray-50 rounded-lg p-3 border flex justify-between items-center gap-2">
+                <div class="flex-1 min-w-0">
+                  <div class="font-semibold text-gray-800 flex items-center gap-1 text-sm"><i data-lucide="calendar" class="w-3 h-3 text-gray-500"></i> ${j.hari}</div>
+                  <div class="text-sm text-gray-600 mt-0.5 flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3 text-gray-500"></i> ${j.jam_mulai} - ${j.jam_selesai}</div>
+                  <div class="text-xs text-orange-600 mt-1 font-medium truncate">Tentor: ${escapeHtml(t.nama || '-')}</div>
+                </div>
+                ${role==='admin'?`<button onclick="deleteRecord('jadwal','${j.id}')" class="text-red-400 hover:text-red-600 p-2 rounded hover:bg-red-50 flex-shrink-0"><i data-lucide="trash-2" class="w-4 h-4"></i></button>`:''}
+              </div>`;
+            }).join('')}
+          </div>
+        </div>`;
       }).join('')}
     </div>`}
   </div>`;
 }
-
 async function simpanJadwal(e) {
   const f = e.target;
   await supabaseClient.from('jadwal').insert([{ siswa_id: f.siswa_id.value, tentor_id: f.tentor_id.value, hari: f.hari.value, jam_mulai: f.jam_mulai.value, jam_selesai: f.jam_selesai.value }]);
@@ -1090,8 +1107,8 @@ function renderAbsensi() {
   const existing = DB.absensi.filter(a => a.tanggal === absensiDate);
   return `<div>
     <div class="flex justify-between items-center mb-4"><h1 class="text-2xl font-bold">Absensi</h1><input type="date" value="${absensiDate}" onchange="absensiDate=this.value; renderPage();" class="border rounded-lg px-3 py-2 text-sm" /></div>
-    <div class="bg-white rounded-xl border overflow-hidden"><table class="w-full text-sm"><thead class="bg-gray-50"><tr><th class="text-left px-4 py-3">Nama</th><th class="text-center px-4 py-3">Status</th></tr></thead>
-      <tbody>${DB.siswa.map(s=>{ const cur = existing.find(a=>a.siswa_id===s.id)?.status; return `<tr class="border-t"><td class="px-4 py-3">${escapeHtml(s.nama)}</td><td class="px-4 py-3 flex justify-center gap-1">${['hadir','izin','sakit','alpa'].map(st=>`<button onclick="setAbsensi('${s.id}','${st}')" class="px-3 py-1 rounded text-xs border ${cur===st?'bg-orange-500 text-white':'bg-white'} capitalize">${st}</button>`).join('')}</td></tr>`; }).join('')}</tbody>
+    <div class="bg-white rounded-xl border overflow-hidden"><table class="w-full text-sm"><thead class="bg-gray-50"><tr><th class="text-left px-3 py-3">Nama</th><th class="text-center px-3 py-3">Status</th></tr></thead>
+      <tbody>${DB.siswa.map(s=>{ const cur = existing.find(a=>a.siswa_id===s.id)?.status; return `<tr class="border-t"><td class="px-3 py-3 text-sm">${escapeHtml(s.nama)}</td><td class="px-3 py-3"><div class="flex justify-center gap-1 flex-wrap">${['hadir','izin','sakit','alpa'].map(st=>`<button onclick="setAbsensi('${s.id}','${st}')" class="px-2 py-1.5 rounded text-xs border ${cur===st?'bg-orange-500 text-white':'bg-white hover:bg-gray-50'} capitalize">${st}</button>`).join('')}</div></td></tr>`; }).join('')}</tbody>
     </table></div>
   </div>`;
 }
