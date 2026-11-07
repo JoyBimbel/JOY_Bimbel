@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Joy Bimbel</title>
 
-<!-- SUPABASE SDK & CLIENT -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
   const supabaseUrl = 'https://jsgtihamclghgurhvwwi.supabase.co';
@@ -124,45 +123,58 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 
   const email = f.email.value.trim();
   const password = f.password.value;
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-  if (error) {
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    await loadAllData(data.user);
+  } catch (err) {
+    alert("Login Gagal: " + err.message); // Menampilkan error asli
     document.getElementById('login-error').classList.remove('hidden');
     btn.disabled = false; btnText.innerText = 'Masuk';
-  } else {
-    await loadAllData(data.user);
   }
 });
 
 async function loadAllData(user) {
-  document.getElementById('login-page').classList.add('hidden');
-  const loadingPage = document.getElementById('loading-page');
-  loadingPage.classList.remove('hidden'); setTimeout(() => loadingPage.classList.remove('opacity-0'), 50);
+  try {
+    document.getElementById('login-page').classList.add('hidden');
+    const loadingPage = document.getElementById('loading-page');
+    loadingPage.classList.remove('hidden'); setTimeout(() => loadingPage.classList.remove('opacity-0'), 50);
 
-  // Ambil Profil
-  const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-  DB.profile = profile;
+    // Cek Profil
+    const { data: profile, error: profErr } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    
+    if (profErr || !profile) {
+      throw new Error("Profil Anda belum terdaftar di tabel 'profiles'. Silakan hubungi Admin.");
+    }
+    DB.profile = profile;
 
-  // Ambil Semua Data
-  const [resSiswa, resTentor, resJadwal, resAbsensi, resInvoice, resLaporan] = await Promise.all([
-    supabase.from('siswa').select('*').order('nama'),
-    supabase.from('tentor').select('*').order('nama'),
-    supabase.from('jadwal').select('*'),
-    supabase.from('absensi').select('*'),
-    supabase.from('invoice').select('*').order('created_at', { ascending: false }),
-    supabase.from('laporan').select('*').order('created_at', { ascending: false })
-  ]);
+    // Ambil Semua Data
+    const [resSiswa, resTentor, resJadwal, resAbsensi, resInvoice, resLaporan] = await Promise.all([
+      supabase.from('siswa').select('*').order('nama'),
+      supabase.from('tentor').select('*').order('nama'),
+      supabase.from('jadwal').select('*'),
+      supabase.from('absensi').select('*'),
+      supabase.from('invoice').select('*').order('created_at', { ascending: false }),
+      supabase.from('laporan').select('*').order('created_at', { ascending: false })
+    ]);
 
-  DB.siswa = resSiswa.data || []; DB.tentor = resTentor.data || []; DB.jadwal = resJadwal.data || [];
-  DB.absensi = resAbsensi.data || []; DB.invoice = resInvoice.data || []; DB.laporan = resLaporan.data || [];
+    DB.siswa = resSiswa.data || []; DB.tentor = resTentor.data || []; DB.jadwal = resJadwal.data || [];
+    DB.absensi = resAbsensi.data || []; DB.invoice = resInvoice.data || []; DB.laporan = resLaporan.data || [];
 
-  bootApp();
-  
-  // Set Realtime Listener
-  supabase.channel('custom-all-channel')
-    .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
-      loadAllData(user);
-    }).subscribe();
+    bootApp();
+    
+    // Realtime Listener
+    supabase.channel('custom-all-channel')
+      .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
+        loadAllData(user);
+      }).subscribe();
+
+  } catch (err) {
+    alert("Error Load Data: " + err.message);
+    await supabase.auth.signOut();
+    location.reload();
+  }
 }
 
 function logout() { if (!confirm('Logout?')) return; supabase.auth.signOut(); location.reload(); }
