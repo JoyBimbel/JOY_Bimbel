@@ -27,11 +27,16 @@
   .spinner { border: 4px solid rgba(255, 255, 255, 0.3); border-top: 4px solid white; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
   @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   
+  /* CSS PENTING UNTUK CETAK PDF */
   #print-area { display: none; }
   @media print {
     body * { visibility: hidden; }
     #print-area, #print-area * { visibility: visible; }
-    #print-area { display: block !important; position: absolute; left: 0; top: 0; width: 100%; padding: 20px; background: white; color: black; }
+    #print-area { 
+      display: block !important; 
+      position: absolute; left: 0; top: 0; width: 100%; 
+      padding: 0; margin: 0; background: white; color: black; 
+    }
     @page { margin: 1cm; }
   }
 </style>
@@ -87,6 +92,7 @@
   </div>
 </div>
 
+<!-- AREA KHUSUS CETAK PDF -->
 <div id="print-area"></div>
 
 <script>
@@ -107,6 +113,7 @@ let currentPage = 'dashboard';
 let absensiDate = new Date().toISOString().slice(0,10);
 let realtimeChannel = null;
 let refreshTimeout = null;
+let chartInstance = null;
 
 // ================= HELPERS =================
 function escapeHtml(s) { return String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -272,6 +279,7 @@ function renderPage() {
   const pages = { dashboard: renderDashboard, siswa: () => renderSiswa(), tentor: () => renderTentor(), jadwal: () => renderJadwal(), absensi: () => renderAbsensi(), invoice: () => renderInvoice(), keuangan: () => renderLaporanKeuangan(), akun: () => renderAkun(), backup: () => renderBackup(), laporan_tentor: () => renderLaporanTentor() };
   content.innerHTML = (pages[currentPage] || renderDashboard)();
   if (typeof lucide !== 'undefined') lucide.createIcons();
+  if (currentPage === 'keuangan') setTimeout(mountChart, 50);
 }
 
 // ================= DASHBOARD =================
@@ -345,20 +353,11 @@ async function simpanUser(e) {
   const tempClient = supabase.createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false, autoRefreshToken: false } });
 
   try {
-    // Mengirim nama dan role melalui metadata
     const { data, error } = await tempClient.auth.signUp({ 
-      email, 
-      password: pass,
-      options: {
-        data: {
-          nama: nama,
-          role: role
-        }
-      }
+      email, password: pass,
+      options: { data: { nama: nama, role: role } }
     });
     if (error) throw error;
-    
-    // Tidak perlu insert manual ke tabel profiles karena sudah ditangani oleh Trigger Database otomatis
     alert("✅ Akun berhasil dibuat! User tersebut sekarang sudah bisa login.");
     closeModal();
     loadAllData({ id: DB.profile.id }); 
@@ -367,17 +366,13 @@ async function simpanUser(e) {
   }
 }
 
-// FITUR RESET PASSWORD VIA ADMIN
 async function resetPass(email) {
   const newPass = prompt(`Masukkan password baru untuk akun ${email}:\n(Minimal 6 karakter)`);
   if (!newPass) return;
   if (newPass.length < 6) { alert('Password terlalu pendek! Minimal 6 karakter.'); return; }
 
   try {
-    const { error } = await supabaseClient.rpc('admin_reset_password', { 
-      user_email: email, 
-      new_password: newPass 
-    });
+    const { error } = await supabaseClient.rpc('admin_reset_password', { user_email: email, new_password: newPass });
     if (error) throw error;
     alert(`✅ Password untuk ${email} berhasil diubah menjadi: ${newPass}\n\nSilakan beritahu password baru ini kepada yang bersangkutan.`);
   } catch (err) {
@@ -385,14 +380,11 @@ async function resetPass(email) {
   }
 }
 
-// FITUR HAPUS AKUN VIA ADMIN
 async function hapusAkun(email, nama) {
-  if (!confirm(`Yakin ingin menghapus akun ${nama} (${email}) secara permanen?\n\nOrang ini tidak akan bisa login lagi.`)) return;
-
+  if (!confirm(`Yakin ingin menghapus akun ${nama} (${email}) secara permanen?`)) return;
   try {
     const { error } = await supabaseClient.rpc('delete_user_by_admin', { user_email: email });
     if (error) throw error;
-    
     alert(`✅ Akun ${nama} berhasil dihapus permanen.`);
     loadAllData({ id: DB.profile.id }); 
   } catch (err) {
@@ -400,54 +392,351 @@ async function hapusAkun(email, nama) {
   }
 }
 
-// ================= CRUD FUNCTIONS =================
-async function deleteRecord(table, id) {
-  if (!confirm('Yakin hapus data ini?')) return;
-  await supabaseClient.from(table).delete().eq('id', id);
+// ================= LAPORAN TENTOR (FOTO + EDIT + HAPUS) =================
+function renderLaporanTentor() {
+  const role = DB.profile ? DB.profile.role : 'tentor';
+  return `<div>
+    <div class="flex justify-between items-center mb-4">
+      <h1 class="text-2xl font-bold">Laporan Mengajar</h1>
+      ${role==='tentor'?`<button onclick="openLaporanForm()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm">+ Buat Laporan</button>`:''}
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      ${DB.laporan.map(l=>{ 
+        const s = DB.siswa.find(x=>x.id===l.siswa_id)||{}; 
+        const t = DB.tentor.find(x=>x.id===l.tentor_id)||{}; 
+        return `<div class="bg-white rounded-xl border overflow-hidden flex flex-col relative">
+          ${l.foto?`<img src="${l.foto}" class="w-full h-48 object-cover border-b" />`:''}
+          <div class="p-4 flex-1 pb-12">
+            <div class="font-bold text-lg">${escapeHtml(s.nama)}</div>
+            <div class="text-xs text-gray-500 mb-2">${l.tanggal} • ${escapeHtml(t.nama)}</div>
+            <p class="text-sm text-gray-700">${escapeHtml(l.catatan)}</p>
+          </div>
+          <div class="absolute bottom-3 right-3 flex gap-1 bg-white p-1 rounded-lg shadow-sm border">
+            <button onclick="openLaporanForm('${l.id}')" class="text-blue-600 p-1.5 hover:bg-blue-50 rounded" title="Edit Laporan"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+            <button onclick="hapusLaporan('${l.id}')" class="text-red-600 p-1.5 hover:bg-red-50 rounded" title="Hapus Laporan"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+          </div>
+        </div>`; 
+      }).join('')}
+    </div>
+  </div>`;
 }
 
-async function simpanSiswa(e) {
-  const f = e.target; const id = f.dataset.id;
-  const data = { nama: f.nama.value, kelas: f.kelas.value, nama_orang_tua: f.nama_orang_tua.value, tentor_id: f.tentor_id.value || null, aktif: true };
-  if (id) await supabaseClient.from('siswa').update(data).eq('id', id);
-  else await supabaseClient.from('siswa').insert([data]);
-  closeModal();
-}
-
-function openSiswaForm(id) {
-  const editing = id ? DB.siswa.find(x=>x.id===id) : null;
-  const body = `<form data-id="${id||''}">
+function openLaporanForm(id) {
+  const editing = id ? DB.laporan.find(x=>x.id===id) : null;
+  const body = `<form id="form-laporan">
     <div class="space-y-3">
-      <div><label class="text-sm">Nama *</label><input name="nama" required value="${escapeHtml(editing?.nama||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
-      <div><label class="text-sm">Kelas</label><input name="kelas" value="${escapeHtml(editing?.kelas||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
-      <div><label class="text-sm">Orang Tua *</label><input name="nama_orang_tua" required value="${escapeHtml(editing?.nama_orang_tua||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
-      <div><label class="text-sm">Tentor</label><select name="tentor_id" class="w-full border rounded-lg px-3 py-2 mt-1"><option value="">-</option>${DB.tentor.map(t=>`<option value="${t.id}" ${editing?.tentor_id===t.id?'selected':''}>${escapeHtml(t.nama)}</option>`).join('')}</select></div>
-      <button type="submit" class="w-full bg-orange-600 text-white py-2 rounded-lg">Simpan</button>
+      <div><label class="text-sm">Siswa *</label><select name="siswa_id" required class="w-full border rounded-lg px-3 py-2 mt-1">${DB.siswa.map(s=>`<option value="${s.id}" ${editing?.siswa_id===s.id?'selected':''}>${escapeHtml(s.nama)}</option>`).join('')}</select></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-sm">Tanggal</label><input name="tanggal" type="date" required value="${editing?.tanggal||todayISO()}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+        <div><label class="text-sm">Mapel</label><input name="mapel" required value="${escapeHtml(editing?.mapel||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+      </div>
+      <div><label class="text-sm">Perkembangan *</label><textarea name="catatan" required rows="3" class="w-full border rounded-lg px-3 py-2 mt-1">${escapeHtml(editing?.catatan||'')}</textarea></div>
+      <div>
+        <label class="text-sm">${editing ? 'Ganti Foto (Opsional):' : 'Foto *'}</label>
+        <input type="file" id="foto-input" accept="image/*" ${editing ? '' : 'required'} class="w-full border rounded-lg px-3 py-2 mt-1 text-sm" />
+        ${editing ? `<img src="${editing.foto}" class="h-20 mt-2 rounded border"/>` : ''}
+      </div>
+      <button type="submit" class="w-full bg-orange-600 text-white py-2 rounded-lg font-semibold">${editing ? 'Simpan Perubahan' : 'Kirim Laporan'}</button>
     </div></form>`;
-  openModal(editing?'Edit Siswa':'Tambah Siswa', body, simpanSiswa);
+  
+  openModal(editing ? 'Edit Laporan' : 'Buat Laporan', body, async (e) => {
+    const f = e.target; 
+    const file = document.getElementById('foto-input').files[0];
+    
+    if (!file && !editing) { alert('Pilih foto terlebih dahulu!'); return; }
+
+    let fotoUrl = editing ? editing.foto : null;
+
+    if (file) {
+      const fileName = `laporan/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
+      const { error: err } = await supabaseClient.storage.from('foto_laporan').upload(fileName, file);
+      if (err) { alert("Gagal upload foto: " + err.message); return; }
+      const { data: { publicUrl } } = supabaseClient.storage.from('foto_laporan').getPublicUrl(fileName);
+      fotoUrl = publicUrl;
+    }
+    
+    const myTentor = DB.tentor.find(t => DB.profile && t.email === DB.profile.email) || DB.tentor[0] || { id: null };
+    const data = { tentor_id: editing ? editing.tentor_id : myTentor.id, siswa_id: f.siswa_id.value, tanggal: f.tanggal.value, mapel: f.mapel.value, catatan: f.catatan.value, foto: fotoUrl };
+
+    if (editing) {
+      await supabaseClient.from('laporan').update(data).eq('id', editing.id);
+    } else {
+      await supabaseClient.from('laporan').insert([data]);
+    }
+    closeModal();
+  });
 }
 
-async function simpanTentor(e) {
-  const f = e.target; const id = f.dataset.id;
-  const data = { nama: f.nama.value, email: f.email.value, mapel: f.mapel.value, tarif: Number(f.tarif.value)||0 };
-  if (id) await supabaseClient.from('tentor').update(data).eq('id', id);
-  else await supabaseClient.from('tentor').insert([data]);
-  closeModal();
-}
-function openTentorForm(id) {
-  const editing = id ? DB.tentor.find(x=>x.id===id) : null;
-  const body = `<form data-id="${id||''}">
-    <div class="space-y-3">
-      <div><label class="text-sm">Nama *</label><input name="nama" required value="${escapeHtml(editing?.nama||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
-      <div><label class="text-sm">Email</label><input name="email" type="email" value="${escapeHtml(editing?.email||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
-      <div><label class="text-sm">Mapel</label><input name="mapel" value="${escapeHtml(editing?.mapel||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
-      <div><label class="text-sm">Tarif per Sesi</label><input name="tarif" type="number" value="${editing?.tarif||''}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
-      <button type="submit" class="w-full bg-emerald-600 text-white py-2 rounded-lg">Simpan</button>
-    </div></form>`;
-  openModal(editing?'Edit Tentor':'Tambah Tentor', body, simpanTentor);
+async function hapusLaporan(id) {
+  if (!confirm('Yakin ingin menghapus laporan ini?')) return;
+  await supabaseClient.from('laporan').delete().eq('id', id);
 }
 
-// ================= VIEWS =================
+// ================= INVOICE SYSTEM =================
+function renderInvoice() {
+  const inv = DB.invoice;
+  const siswas = DB.siswa, tentors = DB.tentor;
+  return `<div>
+    <div class="flex justify-between items-center mb-4">
+      <div><h1 class="text-2xl font-bold">Invoice</h1><p class="text-gray-500 text-sm">${inv.length} invoice total</p></div>
+      <button onclick="openInvoiceForm()" class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Buat Invoice</button>
+    </div>
+    <div class="bg-white rounded-xl border overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-600"><tr>
+          <th class="text-left px-4 py-3">No Invoice</th>
+          <th class="text-left px-4 py-3">Jenis</th>
+          <th class="text-left px-4 py-3">Penerima</th>
+          <th class="text-left px-4 py-3">Periode</th>
+          <th class="text-left px-4 py-3">Total</th>
+          <th class="text-left px-4 py-3">Status</th>
+          <th class="text-right px-4 py-3">Aksi</th>
+        </tr></thead>
+        <tbody>
+          ${inv.length===0?'<tr><td colspan="7" class="text-center text-gray-400 py-8">Belum ada invoice.</td></tr>':
+          inv.map(i=>{
+            const target = i.jenis==='siswa' ? siswas.find(x=>x.id===i.untuk_id) : tentors.find(x=>x.id===i.untuk_id);
+            return `<tr class="border-t hover:bg-gray-50">
+              <td class="px-4 py-3 font-mono text-xs">${escapeHtml(i.no_invoice)}</td>
+              <td class="px-4 py-3"><span class="text-xs px-2 py-1 rounded ${i.jenis==='siswa'?'bg-orange-100 text-orange-700':'bg-amber-100 text-amber-700'}">${i.jenis==='siswa'?'Siswa':'Tentor'}</span></td>
+              <td class="px-4 py-3">${escapeHtml(target?.nama||'-')}</td>
+              <td class="px-4 py-3">${escapeHtml(i.periode||'-')}</td>
+              <td class="px-4 py-3 font-semibold">${rupiah(i.total)}</td>
+              <td class="px-4 py-3"><span class="text-xs px-2 py-1 rounded ${i.status==='lunas'?'bg-emerald-100 text-emerald-700':'bg-rose-100 text-rose-700'}">${i.status==='lunas'?'Lunas':'Belum Bayar'}</span></td>
+              <td class="px-4 py-3 text-right whitespace-nowrap">
+                <button onclick="openInvoiceDetail('${i.id}')" class="text-orange-600 hover:bg-orange-50 p-1.5 rounded" title="Cetak / WA"><i data-lucide="eye" class="w-4 h-4"></i></button>
+                <button onclick="openInvoiceForm('${i.id}')" class="text-blue-600 hover:bg-blue-50 p-1.5 rounded" title="Edit"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+                <button onclick="deleteRecord('invoice','${i.id}')" class="text-red-600 hover:bg-red-50 p-1.5 rounded" title="Hapus"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function openInvoiceForm(id) {
+  const editing = id ? DB.invoice.find(x=>x.id===id) : null;
+  const body = `
+    <form id="form-invoice">
+      <div class="space-y-3">
+        <div><label class="text-sm font-medium">Jenis Invoice *</label>
+          <select name="jenis" onchange="refreshRecipients(this.value)" class="w-full border rounded-lg px-3 py-2 mt-1">
+            <option value="siswa" ${editing?.jenis==='siswa'||!editing?'selected':''}>👨‍👩‍👧 Untuk Orang Tua Siswa (Pemasukan)</option>
+            <option value="tentor" ${editing?.jenis==='tentor'?'selected':''}>👨‍🏫 Untuk Tentor (Gaji)</option>
+          </select></div>
+        <div><label class="text-sm font-medium">Penerima *</label>
+          <select name="untuk_id" id="recipient-select" required class="w-full border rounded-lg px-3 py-2 mt-1"></select></div>
+        <div><label class="text-sm font-medium">Periode</label>
+          <input name="periode" value="${escapeHtml(editing?.periode||periodeNow())}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+        <div>
+          <label class="text-sm font-medium">Item</label>
+          <div id="items-container" class="space-y-2 mt-1"></div>
+          <button type="button" onclick="addItemRow()" class="mt-2 text-sm text-orange-600 hover:underline font-semibold">+ Tambah Baris</button>
+        </div>
+        <div><label class="text-sm font-medium">Status</label>
+          <select name="status" class="w-full border rounded-lg px-3 py-2 mt-1">
+            <option value="belum_bayar" ${editing?.status==='belum_bayar'||!editing?'selected':''}>Belum Bayar</option>
+            <option value="lunas" ${editing?.status==='lunas'?'selected':''}>Lunas</option>
+          </select></div>
+        <div class="flex justify-between items-center pt-3 border-t">
+          <span class="text-sm text-gray-500">Total</span>
+          <span id="invoice-total" class="text-xl font-bold text-orange-600">Rp0</span>
+        </div>
+        <button type="submit" class="w-full bg-rose-600 text-white py-2 rounded-lg font-semibold mt-4">Simpan Invoice</button>
+      </div>
+    </form>`;
+  
+  openModal(editing ? 'Edit Invoice' : 'Buat Invoice Baru', body, async (e) => {
+    const f = e.target;
+    const items = [];
+    document.querySelectorAll('#items-container .item-row').forEach(row => {
+      const deskripsi = row.querySelector('.item-desk').value.trim();
+      const qty = Number(row.querySelector('.item-qty').value) || 0;
+      const harga = Number(row.querySelector('.item-harga').value) || 0;
+      if (deskripsi && qty > 0) items.push({ deskripsi, qty, harga });
+    });
+    if (items.length === 0) { alert('Minimal 1 item harus diisi'); return; }
+    const total = items.reduce((a,it)=>a+it.qty*it.harga, 0);
+    
+    const data = {
+      jenis: f.jenis.value, untuk_id: f.untuk_id.value, periode: f.periode.value.trim(),
+      items: items, total: total, status: f.status.value,
+    };
+
+    if (editing) {
+      await supabaseClient.from('invoice').update(data).eq('id', editing.id);
+    } else {
+      const no = `INV-${new Date().getFullYear()}-${Math.floor(Math.random()*1000)}`;
+      await supabaseClient.from('invoice').insert([{ no_invoice: no, ...data, tanggal: todayISO() }]);
+    }
+    closeModal();
+  });
+
+  refreshRecipients(editing?.jenis||'siswa', editing?.untuk_id);
+  const items = editing ? editing.items : [{deskripsi:'', qty:1, harga:0}];
+  if(Array.isArray(items)) items.forEach(it => addItemRow(it));
+  updateInvoiceTotal();
+}
+
+function refreshRecipients(jenis, selectedId) {
+  const sel = document.getElementById('recipient-select');
+  if (!sel) return;
+  const data = jenis === 'siswa' ? DB.siswa : DB.tentor;
+  sel.innerHTML = '<option value="">— Pilih —</option>' + data.map(d => `
+    <option value="${d.id}" ${d.id===selectedId?'selected':''}>
+      ${escapeHtml(jenis==='siswa' ? `${d.nama} (${d.nama_orang_tua||'-'})` : `${d.nama} - ${d.mapel||'-'}`)}
+    </option>`).join('');
+}
+
+function addItemRow(item) {
+  const container = document.getElementById('items-container');
+  if (!container) return;
+  const it = item || { deskripsi:'', qty:1, harga:0 };
+  const div = document.createElement('div');
+  div.className = 'item-row flex gap-2 items-start';
+  div.innerHTML = `
+    <input class="item-desk flex-1 border rounded-lg px-2 py-1.5 text-sm" placeholder="Deskripsi (misal: SPP Bulan Ini)" value="${escapeHtml(it.deskripsi)}" />
+    <input class="item-qty w-16 border rounded-lg px-2 py-1.5 text-sm" type="number" min="1" placeholder="Qty" value="${it.qty}" oninput="updateInvoiceTotal()" />
+    <input class="item-harga w-28 border rounded-lg px-2 py-1.5 text-sm" type="number" min="0" placeholder="Harga" value="${it.harga}" oninput="updateInvoiceTotal()" />
+    <button type="button" onclick="this.parentElement.remove(); updateInvoiceTotal();" class="text-red-500 hover:bg-red-50 p-1.5 rounded font-bold">✕</button>
+  `;
+  container.appendChild(div);
+  updateInvoiceTotal();
+}
+
+function updateInvoiceTotal() {
+  let total = 0;
+  document.querySelectorAll('#items-container .item-row').forEach(row => {
+    const q = Number(row.querySelector('.item-qty').value)||0;
+    const h = Number(row.querySelector('.item-harga').value)||0;
+    total += q*h;
+  });
+  const el = document.getElementById('invoice-total');
+  if (el) el.textContent = rupiah(total);
+}
+
+function openInvoiceDetail(id) {
+  const inv = DB.invoice.find(x=>x.id===id);
+  if (!inv) return;
+  const target = inv.jenis==='siswa' ? DB.siswa.find(x=>x.id===inv.untuk_id) : DB.tentor.find(x=>x.id===inv.untuk_id);
+  
+  const waNumber = formatWa(target?.no_wa || '');
+  const waNama = inv.jenis==='siswa' ? (target?.nama_orang_tua||target?.nama||'') : (target?.nama||'');
+  const waMsg = encodeURIComponent(`Halo Bpk/Ibu ${waNama},\n\nBerikut invoice *${inv.no_invoice}* periode *${inv.periode}* dengan total *${rupiah(inv.total)}*.\n\nStatus: ${inv.status==='lunas'?'LUNAS':'BELUM BAYAR'}\n\nTerima kasih 🙏\nJoy Bimbel`);
+  const waUrl = `https://wa.me/${waNumber}?text=${waMsg}`;
+
+  const body = `
+    <div class="overflow-x-auto">
+      ${buildInvoiceHTML(inv, target)}
+    </div>
+    <div class="flex flex-wrap gap-2 mt-4 pt-4 border-t print:hidden">
+      <button onclick="printInvoice('${id}')" class="flex-1 bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 font-semibold">🖨️ Cetak PDF</button>
+      <a href="${waUrl}" target="_blank" class="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-center font-semibold">📱 Kirim WhatsApp</a>
+    </div>
+  `;
+  openModal('Detail Invoice', body);
+}
+
+function buildInvoiceHTML(inv, target) {
+  const namaPenerima = inv.jenis==='siswa'
+    ? `${target?.nama_orang_tua || '-'}<br/><span class="text-sm text-gray-600">Siswa: ${target?.nama || '-'}</span>`
+    : `${target?.nama || '-'}<br/><span class="text-sm text-gray-600">${target?.mapel || '-'}</span>`;
+  
+  let itemsArr = inv.items;
+  if (!Array.isArray(itemsArr)) itemsArr = [];
+
+  return `
+    <div class="bg-white p-6 md:p-8 max-w-2xl mx-auto border text-black">
+      <div class="flex justify-between items-start border-b pb-4 mb-4">
+        <div>
+          <h2 class="text-3xl font-bold text-orange-600">JOY BIMBEL</h2>
+          <p class="text-sm text-gray-600 mt-1">Jl. Pendidikan No. 1, Jakarta</p>
+          <p class="text-sm text-gray-600">Telp: 0812-3456-7890</p>
+        </div>
+        <div class="text-right">
+          <p class="font-bold text-2xl">INVOICE</p>
+          <p class="font-mono text-sm mt-1">${escapeHtml(inv.no_invoice)}</p>
+          <p class="text-sm text-gray-600">${escapeHtml(inv.tanggal)}</p>
+        </div>
+      </div>
+      <div class="mb-6 text-sm">
+        <p class="text-xs text-gray-500 uppercase font-bold">Ditagihkan kepada:</p>
+        <p class="font-bold text-lg mt-1">${namaPenerima}</p>
+        <p class="text-sm text-gray-600 mt-1">Periode: ${escapeHtml(inv.periode)}</p>
+      </div>
+      <table class="w-full text-sm border-collapse mb-6">
+        <thead><tr class="border-b-2 border-gray-300">
+          <th class="text-left py-2 px-2">Deskripsi</th>
+          <th class="text-center py-2 px-2">Qty</th>
+          <th class="text-right py-2 px-2">Harga</th>
+          <th class="text-right py-2 px-2">Subtotal</th>
+        </tr></thead>
+        <tbody>
+          ${itemsArr.map(it=>`
+            <tr class="border-b">
+              <td class="py-2 px-2">${escapeHtml(it.deskripsi)}</td>
+              <td class="text-center py-2 px-2">${it.qty}</td>
+              <td class="text-right py-2 px-2">${rupiah(it.harga)}</td>
+              <td class="text-right py-2 px-2">${rupiah(it.qty*it.harga)}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+      <div class="flex justify-end mt-4">
+        <div class="text-right">
+          <p class="text-sm text-gray-500">Total</p>
+          <p class="text-3xl font-bold text-orange-600">${rupiah(inv.total)}</p>
+          <p class="text-sm mt-1 ${inv.status==='lunas'?'text-emerald-600':'text-rose-600'} font-bold">
+            ${inv.status==='lunas'?'✅ LUNAS':'⏳ BELUM BAYAR'}
+          </p>
+        </div>
+      </div>
+      <div class="mt-12 pt-4 border-t text-sm text-gray-500">
+        <p><b>Pembayaran:</b> BCA 1234567890 a.n. Joy Bimbel</p>
+        <p class="mt-1">Terima kasih atas kepercayaan Anda 🙏</p>
+      </div>
+    </div>`;
+}
+
+function printInvoice(id) {
+  const inv = DB.invoice.find(x=>x.id===id);
+  if (!inv) return;
+  const target = inv.jenis==='siswa' ? DB.siswa.find(x=>x.id===inv.untuk_id) : DB.tentor.find(x=>x.id===inv.untuk_id);
+  
+  // Memasukkan HTML ke area khusus cetak
+  const printArea = document.getElementById('print-area');
+  printArea.innerHTML = buildInvoiceHTML(inv, target);
+  
+  // Membuka dialog cetak browser
+  setTimeout(() => {
+    window.print();
+    // Setelah cetak selesai, kosongkan kembali area cetak agar tidak bentrok dengan modal
+    setTimeout(() => { printArea.innerHTML = ''; }, 1000);
+  }, 100);
+}
+
+// ================= LAPORAN KEUANGAN & BACKUP =================
+function renderLaporanKeuangan() {
+  const inv = DB.invoice;
+  const pemasukan = inv.filter(i=>i.jenis==='siswa' && i.status==='lunas').reduce((a,b)=>a+b.total,0);
+  const pengeluaran = inv.filter(i=>i.jenis==='tentor' && i.status==='lunas').reduce((a,b)=>a+b.total,0);
+  
+  return `<div>
+    <h1 class="text-2xl font-bold mb-4">Laporan Keuangan</h1>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div class="bg-white p-4 rounded border"><div class="text-xs text-gray-500 mb-1">Total Pemasukan Lunas (Siswa)</div><div class="text-xl font-bold text-emerald-600">${rupiah(pemasukan)}</div></div>
+      <div class="bg-white p-4 rounded border"><div class="text-xs text-gray-500 mb-1">Total Gaji Dibayar (Tentor)</div><div class="text-xl font-bold text-rose-600">${rupiah(pengeluaran)}</div></div>
+      <div class="bg-white p-4 rounded border"><div class="text-xs text-gray-500 mb-1">Saldo Bersih</div><div class="text-xl font-bold text-orange-600">${rupiah(pemasukan - pengeluaran)}</div></div>
+    </div>
+  </div>`;
+}
+
+function renderBackup() {
+  return `<div><h1 class="text-2xl font-bold mb-4">Backup Data (CSV)</h1><p class="text-sm text-gray-500">Data tersimpan aman di Supabase Cloud.</p></div>`;
+}
+
+// ================= CRUD LAINNYA (SISWA, TENTOR, JADWAL, DLL) =================
 function renderSiswa() {
   const role = DB.profile ? DB.profile.role : 'tentor';
   return `<div>
@@ -457,6 +746,23 @@ function renderSiswa() {
     </table></div>
   </div>`;
 }
+async function simpanSiswa(e) {
+  const f = e.target; const id = f.dataset.id;
+  const data = { nama: f.nama.value, kelas: f.kelas.value, nama_orang_tua: f.nama_orang_tua.value, tentor_id: f.tentor_id.value || null, aktif: true };
+  if (id) await supabaseClient.from('siswa').update(data).eq('id', id);
+  else await supabaseClient.from('siswa').insert([data]);
+  closeModal();
+}
+function openSiswaForm(id) {
+  const editing = id ? DB.siswa.find(x=>x.id===id) : null;
+  const body = `<form data-id="${id||''}"><div class="space-y-3">
+    <div><label class="text-sm">Nama *</label><input name="nama" required value="${escapeHtml(editing?.nama||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+    <div><label class="text-sm">Kelas</label><input name="kelas" value="${escapeHtml(editing?.kelas||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+    <div><label class="text-sm">Orang Tua *</label><input name="nama_orang_tua" required value="${escapeHtml(editing?.nama_orang_tua||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+    <button type="submit" class="w-full bg-orange-600 text-white py-2 rounded-lg">Simpan</button>
+  </div></form>`;
+  openModal(editing?'Edit Siswa':'Tambah Siswa', body, simpanSiswa);
+}
 
 function renderTentor() {
   return `<div>
@@ -465,6 +771,24 @@ function renderTentor() {
       <tbody>${DB.tentor.map(t=>`<tr class="border-t"><td class="px-4 py-3 font-medium">${escapeHtml(t.nama)}</td><td class="px-4 py-3">${escapeHtml(t.mapel)}</td><td class="px-4 py-3">${escapeHtml(t.email)}</td><td class="px-4 py-3 text-right"><button onclick="openTentorForm('${t.id}')" class="text-orange-600 p-1.5"><i data-lucide="pencil" class="w-4 h-4"></i></button><button onclick="deleteRecord('tentor','${t.id}')" class="text-red-600 p-1.5"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td></tr>`).join('')}</tbody>
     </table></div>
   </div>`;
+}
+async function simpanTentor(e) {
+  const f = e.target; const id = f.dataset.id;
+  const data = { nama: f.nama.value, email: f.email.value, mapel: f.mapel.value, tarif: Number(f.tarif.value)||0 };
+  if (id) await supabaseClient.from('tentor').update(data).eq('id', id);
+  else await supabaseClient.from('tentor').insert([data]);
+  closeModal();
+}
+function openTentorForm(id) {
+  const editing = id ? DB.tentor.find(x=>x.id===id) : null;
+  const body = `<form data-id="${id||''}"><div class="space-y-3">
+    <div><label class="text-sm">Nama *</label><input name="nama" required value="${escapeHtml(editing?.nama||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+    <div><label class="text-sm">Email</label><input name="email" type="email" value="${escapeHtml(editing?.email||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+    <div><label class="text-sm">Mapel</label><input name="mapel" value="${escapeHtml(editing?.mapel||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+    <div><label class="text-sm">Tarif per Sesi</label><input name="tarif" type="number" value="${editing?.tarif||''}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+    <button type="submit" class="w-full bg-emerald-600 text-white py-2 rounded-lg">Simpan</button>
+  </div></form>`;
+  openModal(editing?'Edit Tentor':'Tambah Tentor', body, simpanTentor);
 }
 
 function renderJadwal() {
@@ -482,14 +806,13 @@ async function simpanJadwal(e) {
   closeModal();
 }
 function openJadwalForm() {
-  const body = `<form>
-    <div class="space-y-3">
-      <div><label class="text-sm">Siswa</label><select name="siswa_id" required class="w-full border rounded-lg px-3 py-2 mt-1">${DB.siswa.map(s=>`<option value="${s.id}">${escapeHtml(s.nama)}</option>`).join('')}</select></div>
-      <div><label class="text-sm">Tentor</label><select name="tentor_id" required class="w-full border rounded-lg px-3 py-2 mt-1">${DB.tentor.map(t=>`<option value="${t.id}">${escapeHtml(t.nama)}</option>`).join('')}</select></div>
-      <div><label class="text-sm">Hari</label><select name="hari" class="w-full border rounded-lg px-3 py-2 mt-1">${HARI.map(h=>`<option value="${h}">${h}</option>`).join('')}</select></div>
-      <div class="grid grid-cols-2 gap-2"><div><label class="text-sm">Mulai</label><input type="time" name="jam_mulai" value="15:00" class="w-full border rounded-lg px-3 py-2" /></div><div><label class="text-sm">Selesai</label><input type="time" name="jam_selesai" value="16:30" class="w-full border rounded-lg px-3 py-2" /></div></div>
-      <button type="submit" class="w-full bg-orange-600 text-white py-2 rounded-lg">Simpan</button>
-    </div></form>`;
+  const body = `<form><div class="space-y-3">
+    <div><label class="text-sm">Siswa</label><select name="siswa_id" required class="w-full border rounded-lg px-3 py-2 mt-1">${DB.siswa.map(s=>`<option value="${s.id}">${escapeHtml(s.nama)}</option>`).join('')}</select></div>
+    <div><label class="text-sm">Tentor</label><select name="tentor_id" required class="w-full border rounded-lg px-3 py-2 mt-1">${DB.tentor.map(t=>`<option value="${t.id}">${escapeHtml(t.nama)}</option>`).join('')}</select></div>
+    <div><label class="text-sm">Hari</label><select name="hari" class="w-full border rounded-lg px-3 py-2 mt-1">${HARI.map(h=>`<option value="${h}">${h}</option>`).join('')}</select></div>
+    <div class="grid grid-cols-2 gap-2"><div><label class="text-sm">Mulai</label><input type="time" name="jam_mulai" value="15:00" class="w-full border rounded-lg px-3 py-2" /></div><div><label class="text-sm">Selesai</label><input type="time" name="jam_selesai" value="16:30" class="w-full border rounded-lg px-3 py-2" /></div></div>
+    <button type="submit" class="w-full bg-orange-600 text-white py-2 rounded-lg">Simpan</button>
+  </div></form>`;
   openModal('Tambah Jadwal', body, simpanJadwal);
 }
 
@@ -508,71 +831,9 @@ async function setAbsensi(siswa_id, status) {
   else await supabaseClient.from('absensi').insert([{ siswa_id, tanggal: absensiDate, status, oleh: DB.profile ? DB.profile.email : '' }]);
 }
 
-function renderLaporanTentor() {
-  const role = DB.profile ? DB.profile.role : 'tentor';
-  return `<div>
-    <div class="flex justify-between items-center mb-4"><h1 class="text-2xl font-bold">Laporan Mengajar</h1>${role==='tentor'?`<button onclick="openLaporanForm()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm">+ Buat Laporan</button>`:''}</div>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">${DB.laporan.map(l=>{ const s = DB.siswa.find(x=>x.id===l.siswa_id)||{}; const t = DB.tentor.find(x=>x.id===l.tentor_id)||{}; return `<div class="bg-white rounded-xl border overflow-hidden flex flex-col">${l.foto?`<img src="${l.foto}" class="w-full h-48 object-cover border-b" />`:''}<div class="p-4 flex-1"><div class="font-bold text-lg">${escapeHtml(s.nama)}</div><div class="text-xs text-gray-500 mb-2">${l.tanggal} • ${escapeHtml(t.nama)}</div><p class="text-sm text-gray-700">${escapeHtml(l.catatan)}</p></div></div>`; }).join('')}</div>
-  </div>`;
-}
-function openLaporanForm() {
-  const body = `<form id="form-laporan">
-    <div class="space-y-3">
-      <div><label class="text-sm">Siswa *</label><select name="siswa_id" required class="w-full border rounded-lg px-3 py-2 mt-1">${DB.siswa.map(s=>`<option value="${s.id}">${escapeHtml(s.nama)}</option>`).join('')}</select></div>
-      <div class="grid grid-cols-2 gap-3"><div><label class="text-sm">Tanggal</label><input name="tanggal" type="date" required value="${todayISO()}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div><div><label class="text-sm">Mapel</label><input name="mapel" required class="w-full border rounded-lg px-3 py-2 mt-1" /></div></div>
-      <div><label class="text-sm">Perkembangan *</label><textarea name="catatan" required rows="3" class="w-full border rounded-lg px-3 py-2 mt-1"></textarea></div>
-      <div><label class="text-sm">Foto *</label><input type="file" id="foto-input" accept="image/*" required class="w-full border rounded-lg px-3 py-2 mt-1 text-sm" /></div>
-      <button type="submit" class="w-full bg-orange-600 text-white py-2 rounded-lg font-semibold">Kirim Laporan</button>
-    </div></form>`;
-  openModal('Buat Laporan', body, async (e) => {
-    const f = e.target; const file = document.getElementById('foto-input').files[0];
-    if (!file) return;
-    const fileName = `laporan/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
-    const { data: uploadData, error: err } = await supabaseClient.storage.from('foto_laporan').upload(fileName, file);
-    if (err) { alert("Gagal upload foto: " + err.message); return; }
-    const { data: { publicUrl } } = supabaseClient.storage.from('foto_laporan').getPublicUrl(fileName);
-    
-    const myTentor = DB.tentor.find(t => DB.profile && t.email === DB.profile.email) || DB.tentor[0] || { id: null };
-    await supabaseClient.from('laporan').insert([{ tentor_id: myTentor.id, siswa_id: f.siswa_id.value, tanggal: f.tanggal.value, mapel: f.mapel.value, catatan: f.catatan.value, foto: publicUrl }]);
-    closeModal();
-  });
-}
-
-function renderInvoice() {
-  return `<div>
-    <div class="flex justify-between items-center mb-4"><h1 class="text-2xl font-bold">Invoice</h1><button onclick="openInvoiceForm()" class="bg-rose-600 text-white px-4 py-2 rounded-lg text-sm">+ Buat Invoice</button></div>
-    <div class="bg-white rounded-xl border overflow-hidden"><table class="w-full text-sm"><thead class="bg-gray-50"><tr><th class="text-left px-4 py-3">No</th><th class="text-left px-4 py-3">Penerima</th><th class="text-left px-4 py-3">Total</th><th class="text-right px-4 py-3">Aksi</th></tr></thead>
-      <tbody>${DB.invoice.map(i=>{ const t = i.jenis==='siswa'?DB.siswa.find(x=>x.id===i.untuk_id):DB.tentor.find(x=>x.id===i.untuk_id); return `<tr class="border-t"><td class="px-4 py-3">${i.no_invoice}</td><td class="px-4 py-3">${escapeHtml(t?.nama||'-')}</td><td class="px-4 py-3 font-semibold">${rupiah(i.total)}</td><td class="px-4 py-3 text-right"><button onclick="deleteRecord('invoice','${i.id}')" class="text-red-600 p-1.5"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td></tr>`; }).join('')}</tbody>
-    </table></div>
-  </div>`;
-}
-function openInvoiceForm() {
-  const body = `<form>
-    <div class="space-y-3">
-      <div><label class="text-sm">Jenis</label><select name="jenis" class="w-full border rounded-lg px-3 py-2 mt-1"><option value="siswa">Siswa</option><option value="tentor">Tentor</option></select></div>
-      <div><label class="text-sm">Penerima</label><select name="untuk_id" class="w-full border rounded-lg px-3 py-2 mt-1">${DB.siswa.map(s=>`<option value="${s.id}">${escapeHtml(s.nama)}</option>`).join('')}${DB.tentor.map(t=>`<option value="${t.id}">${escapeHtml(t.nama)}</option>`).join('')}</select></div>
-      <div><label class="text-sm">Total (Rp)</label><input type="number" name="total" required class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
-      <button type="submit" class="w-full bg-rose-600 text-white py-2 rounded-lg">Simpan</button>
-    </div></form>`;
-  openModal('Buat Invoice', body, async (e) => {
-    const f = e.target;
-    const no = `INV-${new Date().getFullYear()}-${Math.floor(Math.random()*1000)}`;
-    await supabaseClient.from('invoice').insert([{ no_invoice: no, jenis: f.jenis.value, untuk_id: f.untuk_id.value, total: Number(f.total.value), items: [] }]);
-    closeModal();
-  });
-}
-
-function renderLaporanKeuangan() {
-  const inv = DB.invoice;
-  const pemasukan = inv.filter(i=>i.jenis==='siswa' && i.status==='lunas').reduce((a,b)=>a+b.total,0);
-  return `<div>
-    <h1 class="text-2xl font-bold mb-4">Laporan Keuangan</h1>
-    <div class="grid grid-cols-2 gap-4 mb-6"><div class="bg-white p-4 rounded border"><div class="text-xs text-gray-500">Total Pemasukan Lunas</div><div class="text-xl font-bold text-emerald-600">${rupiah(pemasukan)}</div></div></div>
-  </div>`;
-}
-
-function renderBackup() {
-  return `<div><h1 class="text-2xl font-bold mb-4">Backup Data (CSV)</h1><p class="text-sm text-gray-500">Data tersimpan aman di Supabase Cloud.</p></div>`;
+async function deleteRecord(table, id) {
+  if (!confirm('Yakin hapus data ini?')) return;
+  await supabaseClient.from(table).delete().eq('id', id);
 }
 
 // ================= INIT =================
