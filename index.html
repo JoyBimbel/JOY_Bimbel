@@ -5,12 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Joy Bimbel</title>
 
-<!-- SCRIPT SUPABASE (DIPERBAIKI) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
   const supabaseUrl = 'https://jsgtihamclghgurhvwwi.supabase.co';
   const supabaseKey = 'sb_publishable_K3U2e1vIcuyE5CZLybWeVA_XthgH50z';
-  // Perhatikan namanya sekarang menjadi supabaseClient (bukan supabase)
   const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 </script>
 
@@ -62,11 +60,13 @@
 
 <!-- APP -->
 <div id="app-page" class="hidden opacity-0 transition-opacity duration-500">
+  <!-- HEADER MOBILE (Tombol Logout ditambahkan di sini) -->
   <div class="md:hidden bg-white border-b px-4 py-3 flex items-center justify-between sticky top-0 z-30">
     <button onclick="toggleSidebar()"><i data-lucide="menu" class="w-6 h-6"></i></button>
     <span class="font-bold"><span class="text-orange-600">Joy</span> Bimbel</span>
-    <span id="mobile-role" class="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded"></span>
+    <button onclick="logout()" class="text-red-600 p-1"><i data-lucide="log-out" class="w-5 h-5"></i></button>
   </div>
+
   <div class="flex min-h-screen">
     <aside id="sidebar" class="fixed md:static inset-y-0 left-0 z-40 w-64 bg-white border-r p-4 flex-col hidden md:flex transform -translate-x-full md:translate-x-0 transition-transform overflow-y-auto">
       <div class="flex items-center justify-between mb-6"><h1 class="text-xl font-bold"><span class="text-orange-600">Joy</span> Bimbel</h1><button class="md:hidden" onclick="toggleSidebar()"><i data-lucide="x" class="w-5 h-5"></i></button></div>
@@ -106,7 +106,6 @@ const HARI = ['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'];
 
 // ================= AUTH =================
 async function checkSession() {
-  // MENGGUNAKAN supabaseClient
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (session) {
     await loadAllData(session.user);
@@ -128,7 +127,6 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
   const password = f.password.value;
 
   try {
-    // MENGGUNAKAN supabaseClient
     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
     if (error) throw error;
     await loadAllData(data.user);
@@ -145,7 +143,6 @@ async function loadAllData(user) {
     const loadingPage = document.getElementById('loading-page');
     loadingPage.classList.remove('hidden'); setTimeout(() => loadingPage.classList.remove('opacity-0'), 50);
 
-    // MENGGUNAKAN supabaseClient
     const { data: profile, error: profErr } = await supabaseClient.from('profiles').select('*').eq('id', user.id).single();
     
     if (profErr || !profile) {
@@ -153,7 +150,6 @@ async function loadAllData(user) {
     }
     DB.profile = profile;
 
-    // MENGGUNAKAN supabaseClient
     const [resSiswa, resTentor, resJadwal, resAbsensi, resInvoice, resLaporan] = await Promise.all([
       supabaseClient.from('siswa').select('*').order('nama'),
       supabaseClient.from('tentor').select('*').order('nama'),
@@ -168,7 +164,6 @@ async function loadAllData(user) {
 
     bootApp();
     
-    // MENGGUNAKAN supabaseClient
     supabaseClient.channel('custom-all-channel')
       .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
         loadAllData(user);
@@ -181,7 +176,19 @@ async function loadAllData(user) {
   }
 }
 
-function logout() { if (!confirm('Logout?')) return; supabaseClient.auth.signOut(); location.reload(); }
+// ================= FUNGSI LOGOUT DIPERBAIKI =================
+async function logout() { 
+  if (!confirm('Apakah Anda yakin ingin keluar?')) return; 
+  try {
+    // Menunggu proses hapus sesi selesai, baru reload halaman
+    await supabaseClient.auth.signOut(); 
+    location.reload(); 
+  } catch (error) {
+    console.error("Gagal logout:", error);
+    location.reload(); // Tetap reload jika terjadi error
+  }
+}
+// ============================================================
 
 // ================= APP ROUTING =================
 function bootApp() {
@@ -386,7 +393,6 @@ function openLaporanForm() {
     const f = e.target; const file = document.getElementById('foto-input').files[0];
     if (!file) return;
     const fileName = `laporan/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
-    // MENGGUNAKAN supabaseClient
     const { data: uploadData, error: err } = await supabaseClient.storage.from('foto_laporan').upload(fileName, file);
     if (err) { alert("Gagal upload foto: " + err.message); return; }
     const { data: { publicUrl } } = supabaseClient.storage.from('foto_laporan').getPublicUrl(fileName);
