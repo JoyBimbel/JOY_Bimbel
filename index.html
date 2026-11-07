@@ -124,25 +124,31 @@ initData(K.tentor, seedTentor);
 initData(K.siswa, seedSiswa); 
 initData(K.jadwal, seedJadwal);
 
-// ================= SKRIP PAKSA UPDATE ADMIN =================
-// 1. Ambil data user yang ada di browser
+// ================= SKRIP PAKSA UPDATE ADMIN (DIPERBAIKI) =================
 let currentUsers = load(K.users, []);
 
-// 2. Hapus akun admin lama secara paksa jika masih ada
-currentUsers = currentUsers.filter(u => u.email !== 'admin@bimbel.com');
+// 1. Cari apakah akun admin lama masih ada
+let oldAdminIndex = currentUsers.findIndex(u => u.email === 'admin@bimbel.com');
+if (oldAdminIndex !== -1) {
+    // Ubah email dan nama, TAPI JANGAN UBAH PASSWORD
+    currentUsers[oldAdminIndex].email = 'ricokristanto18@gmail.com';
+    currentUsers[oldAdminIndex].nama = 'Rico';
+}
 
-// 3. Cari atau buat akun Rico
-let rico = currentUsers.find(u => u.email === 'ricokristanto18@gmail.com');
-if (!rico) {
+// 2. Pastikan akun Rico ada
+let ricoIndex = currentUsers.findIndex(u => u.email === 'ricokristanto18@gmail.com');
+if (ricoIndex === -1) {
+    // Jika benar-benar belum ada, baru buat baru dengan password default
     currentUsers.push({ id:'u1', email:'ricokristanto18@gmail.com', password:'admin123', role:'admin', nama:'Rico' });
 } else {
-    rico.nama = 'Rico';
-    rico.password = 'admin123';
-    rico.role = 'admin';
+    // Jika sudah ada, pastikan namanya Rico, tapi JANGAN SENTUH PASSWORD-NYA
+    currentUsers[ricoIndex].nama = 'Rico';
+    currentUsers[ricoIndex].role = 'admin';
 }
+
 save(K.users, currentUsers);
 
-// 4. Logout paksa jika sesi saat ini masih menggunakan akun admin lama
+// 3. Logout paksa jika sesi saat ini masih menggunakan akun admin lama
 let oldSession = load(K.session, null);
 if (oldSession && oldSession.email === 'admin@bimbel.com') {
     localStorage.removeItem(K.session);
