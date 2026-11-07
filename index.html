@@ -107,7 +107,7 @@ let DB = { profile: null, siswa: [], tentor: [], jadwal: [], absensi: [], invoic
 let currentPage = 'dashboard';
 let absensiDate = new Date().toISOString().slice(0,10);
 let chartInstance = null;
-let realtimeChannel = null; // Variabel untuk menyimpan saluran realtime
+let realtimeChannel = null;
 let refreshTimeout = null;
 
 // ================= HELPERS =================
@@ -126,13 +126,17 @@ async function checkSession() {
     if (session) {
       await loadAllData(session.user);
     } else {
-      document.getElementById('login-page').classList.remove('hidden');
-      document.getElementById('app-page').classList.add('hidden');
-      document.getElementById('loading-page').classList.add('hidden');
+      const lp = document.getElementById('login-page');
+      const ap = document.getElementById('app-page');
+      const ldp = document.getElementById('loading-page');
+      if (lp) lp.classList.remove('hidden');
+      if (ap) ap.classList.add('hidden');
+      if (ldp) ldp.classList.add('hidden');
     }
   } catch (e) {
     console.error(e);
-    document.getElementById('login-page').classList.remove('hidden');
+    const lp = document.getElementById('login-page');
+    if (lp) lp.classList.remove('hidden');
   }
 }
 
@@ -141,7 +145,8 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
   const f = e.target;
   const btn = document.getElementById('btn-login');
   const btnText = document.getElementById('btn-text');
-  btn.disabled = true; btnText.innerHTML = `Memverifikasi...`;
+  if (btn) btn.disabled = true; 
+  if (btnText) btnText.innerHTML = `Memverifikasi...`;
 
   const email = f.email.value.trim();
   const password = f.password.value;
@@ -152,16 +157,23 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     await loadAllData(data.user);
   } catch (err) {
     alert("Login Gagal: " + err.message);
-    document.getElementById('login-error').classList.remove('hidden');
-    btn.disabled = false; btnText.innerText = 'Masuk';
+    const loginError = document.getElementById('login-error');
+    if (loginError) loginError.classList.remove('hidden');
+    if (btn) btn.disabled = false; 
+    if (btnText) btnText.innerText = 'Masuk';
   }
 });
 
 async function loadAllData(user) {
   try {
-    document.getElementById('login-page').classList.add('hidden');
+    const lp = document.getElementById('login-page');
+    if (lp) lp.classList.add('hidden');
+    
     const loadingPage = document.getElementById('loading-page');
-    loadingPage.classList.remove('hidden'); setTimeout(() => loadingPage.classList.remove('opacity-0'), 50);
+    if (loadingPage) {
+      loadingPage.classList.remove('hidden'); 
+      setTimeout(() => loadingPage.classList.remove('opacity-0'), 50);
+    }
 
     const { data: profile, error: profErr } = await supabaseClient.from('profiles').select('*').eq('id', user.id).single();
     
@@ -184,16 +196,14 @@ async function loadAllData(user) {
 
     bootApp();
     
-    // Bersihkan channel lama jika ada, sebelum membuat yang baru
     if (realtimeChannel) {
       await supabaseClient.removeChannel(realtimeChannel);
     }
 
-    // Setup Realtime dengan jeda (debounce) agar tidak crash
     realtimeChannel = supabaseClient.channel('custom-all-channel')
       .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
         clearTimeout(refreshTimeout);
-        refreshTimeout = setTimeout(() => loadAllData(user), 1000); // Tunggu 1 detik sebelum refresh
+        refreshTimeout = setTimeout(() => loadAllData(user), 1000);
       }).subscribe();
 
   } catch (err) {
@@ -203,38 +213,43 @@ async function loadAllData(user) {
   }
 }
 
-// ================= FUNGSI LOGOUT DIPERBAIKI TOTAL =================
 async function logout() { 
   if (!confirm('Apakah Anda yakin ingin keluar?')) return; 
   try {
-    // 1. Hentikan listener realtime
     if (realtimeChannel) {
       await supabaseClient.removeChannel(realtimeChannel);
       realtimeChannel = null;
     }
-    // 2. Hapus semua channel yang mungkin menggantung
     await supabaseClient.removeAllChannels();
-    // 3. Logout dari auth
     await supabaseClient.auth.signOut(); 
-    // 4. Reload halaman
     location.reload(); 
   } catch (error) {
     console.error("Gagal logout:", error);
     location.reload(); 
   }
 }
-// ===================================================================
 
 // ================= APP ROUTING =================
 function bootApp() {
   const loadingPage = document.getElementById('loading-page');
-  loadingPage.classList.add('opacity-0');
+  if (loadingPage) loadingPage.classList.add('opacity-0');
+  
   setTimeout(() => {
-    loadingPage.classList.add('hidden');
+    if (loadingPage) loadingPage.classList.add('hidden');
+    
     const appPage = document.getElementById('app-page');
-    appPage.classList.remove('hidden'); setTimeout(() => appPage.classList.remove('opacity-0'), 50);
-    document.getElementById('sidebar-role').textContent = DB.profile.role.toUpperCase() + ' - ' + DB.profile.nama;
-    document.getElementById('mobile-role').textContent = DB.profile.role;
+    if (appPage) {
+      appPage.classList.remove('hidden'); 
+      setTimeout(() => appPage.classList.remove('opacity-0'), 50);
+    }
+    
+    // PENGAMAN NULL CHECK
+    const sidebarRole = document.getElementById('sidebar-role');
+    if (sidebarRole && DB.profile) sidebarRole.textContent = DB.profile.role.toUpperCase() + ' - ' + DB.profile.nama;
+    
+    const mobileRole = document.getElementById('mobile-role');
+    if (mobileRole && DB.profile) mobileRole.textContent = DB.profile.role;
+    
     renderNav(); renderPage(); 
     if (typeof lucide !== 'undefined') lucide.createIcons();
   }, 400);
@@ -254,29 +269,39 @@ function renderNav() {
     {id:'jadwal', label:'Jadwal', icon:'calendar'}, {id:'absensi', label:'Absensi', icon:'clipboard-check'},
     {id:'laporan_tentor', label:'Laporan Mengajar', icon:'file-check'}
   ];
-  const menus = s.role === 'admin' ? adminMenus : tentorMenus;
-  document.getElementById('nav').innerHTML = menus.map(m => `
-    <button onclick="navigate('${m.id}')" class="flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition ${currentPage===m.id ? 'bg-orange-50 text-orange-700 font-semibold' : 'hover:bg-gray-100 text-gray-700'}">
-      <i data-lucide="${m.icon}" class="w-4 h-4 flex-shrink-0"></i> <span class="truncate">${m.label}</span>
-    </button>`).join('');
+  const menus = s && s.role === 'admin' ? adminMenus : tentorMenus;
+  const nav = document.getElementById('nav');
+  if (nav) {
+    nav.innerHTML = menus.map(m => `
+      <button onclick="navigate('${m.id}')" class="flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition ${currentPage===m.id ? 'bg-orange-50 text-orange-700 font-semibold' : 'hover:bg-gray-100 text-gray-700'}">
+        <i data-lucide="${m.icon}" class="w-4 h-4 flex-shrink-0"></i> <span class="truncate">${m.label}</span>
+      </button>`).join('');
+  }
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
-function navigate(page) { currentPage = page; renderNav(); renderPage(); if (window.innerWidth < 768) document.getElementById('sidebar').classList.add('hidden','-translate-x-full'); }
-function toggleSidebar() { const s = document.getElementById('sidebar'); s.classList.toggle('hidden'); s.classList.toggle('-translate-x-full'); }
+function navigate(page) { currentPage = page; renderNav(); renderPage(); if (window.innerWidth < 768) { const sb = document.getElementById('sidebar'); if (sb) { sb.classList.add('hidden','-translate-x-full'); } } }
+function toggleSidebar() { const s = document.getElementById('sidebar'); if (s) { s.classList.toggle('hidden'); s.classList.toggle('-translate-x-full'); } }
 
 // ================= MODAL =================
 let modalSubmit = null;
 function openModal(title, body, onSubmit) {
-  document.getElementById('modal-title').textContent = title; document.getElementById('modal-body').innerHTML = body;
-  modalSubmit = onSubmit; document.getElementById('modal').classList.remove('hidden'); if (typeof lucide !== 'undefined') lucide.createIcons();
+  const mTitle = document.getElementById('modal-title');
+  if (mTitle) mTitle.textContent = title; 
+  const mBody = document.getElementById('modal-body');
+  if (mBody) mBody.innerHTML = body;
+  modalSubmit = onSubmit; 
+  const m = document.getElementById('modal');
+  if (m) m.classList.remove('hidden'); 
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
-function closeModal() { document.getElementById('modal').classList.add('hidden'); modalSubmit = null; }
+function closeModal() { const m = document.getElementById('modal'); if (m) m.classList.add('hidden'); modalSubmit = null; }
 document.getElementById('modal-body').addEventListener('submit', (e) => { e.preventDefault(); if (modalSubmit) modalSubmit(e); });
 
 // ================= RENDER PAGE =================
 function renderPage() {
   const content = document.getElementById('content');
+  if (!content) return;
   const pages = { dashboard: renderDashboard, siswa: () => renderSiswa(), tentor: () => renderTentor(), jadwal: () => renderJadwal(), absensi: () => renderAbsensi(), invoice: () => renderInvoice(), keuangan: () => renderLaporanKeuangan(), backup: () => renderBackup(), laporan_tentor: () => renderLaporanTentor() };
   content.innerHTML = (pages[currentPage] || renderDashboard)();
   if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -287,12 +312,12 @@ function renderPage() {
 function renderDashboard() {
   const s = DB.profile; const siswa = DB.siswa, tentor = DB.tentor, inv = DB.invoice;
   const pemasukan = inv.filter(i=>i.jenis==='siswa' && i.status==='lunas').reduce((a,b)=>a+b.total,0);
-  const pemasukanCard = s.role === 'admin' ? `<div class="bg-white rounded-xl p-4 border"><div class="text-xs text-gray-500 mb-2">Pemasukan Lunas</div><div class="text-xl font-bold text-emerald-600">${rupiah(pemasukan)}</div></div>` : '';
+  const pemasukanCard = s && s.role === 'admin' ? `<div class="bg-white rounded-xl p-4 border"><div class="text-xs text-gray-500 mb-2">Pemasukan Lunas</div><div class="text-xl font-bold text-emerald-600">${rupiah(pemasukan)}</div></div>` : '';
   return `
     <div>
-      <h1 class="text-2xl font-bold mb-1">Dashboard ${s.role==='admin'?'Admin':'Tentor'}</h1>
-      <p class="text-gray-500 mb-6 text-sm">Selamat datang, ${escapeHtml(s.nama)} 👋</p>
-      <div class="grid grid-cols-2 ${s.role==='admin'?'md:grid-cols-4':'md:grid-cols-3'} gap-4 mb-6">
+      <h1 class="text-2xl font-bold mb-1">Dashboard ${s && s.role==='admin'?'Admin':'Tentor'}</h1>
+      <p class="text-gray-500 mb-6 text-sm">Selamat datang, ${s ? escapeHtml(s.nama) : ''} 👋</p>
+      <div class="grid grid-cols-2 ${s && s.role==='admin'?'md:grid-cols-4':'md:grid-cols-3'} gap-4 mb-6">
         <div class="bg-white rounded-xl p-4 border"><div class="text-xs text-gray-500 mb-2">Total Siswa</div><div class="text-xl font-bold">${siswa.length}</div></div>
         <div class="bg-white rounded-xl p-4 border"><div class="text-xs text-gray-500 mb-2">Total Tentor</div><div class="text-xl font-bold">${tentor.length}</div></div>
         ${pemasukanCard}
@@ -350,7 +375,7 @@ function openTentorForm(id) {
 
 // ================= VIEWS =================
 function renderSiswa() {
-  const role = DB.profile.role;
+  const role = DB.profile ? DB.profile.role : 'tentor';
   return `<div>
     <div class="flex justify-between items-center mb-4"><h1 class="text-2xl font-bold">Daftar Siswa</h1>${role==='admin'?`<button onclick="openSiswaForm()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm">+ Tambah Siswa</button>`:''}</div>
     <div class="bg-white rounded-xl border overflow-hidden"><table class="w-full text-sm"><thead class="bg-gray-50"><tr><th class="text-left px-4 py-3">Nama</th><th class="text-left px-4 py-3">Kelas</th><th class="text-left px-4 py-3">Ortu</th>${role==='admin'?'<th class="text-right px-4 py-3">Aksi</th>':''}</tr></thead>
@@ -369,7 +394,7 @@ function renderTentor() {
 }
 
 function renderJadwal() {
-  const role = DB.profile.role;
+  const role = DB.profile ? DB.profile.role : 'tentor';
   return `<div>
     <div class="flex justify-between items-center mb-4"><h1 class="text-2xl font-bold">Jadwal</h1>${role==='admin'?`<button onclick="openJadwalForm()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm">+ Tambah</button>`:''}</div>
     <div class="bg-white rounded-xl border overflow-hidden"><table class="w-full text-sm"><thead class="bg-gray-50"><tr><th class="text-left px-4 py-3">Hari</th><th class="text-left px-4 py-3">Jam</th><th class="text-left px-4 py-3">Siswa</th>${role==='admin'?'<th class="text-right px-4 py-3">Aksi</th>':''}</tr></thead>
@@ -406,11 +431,11 @@ function renderAbsensi() {
 async function setAbsensi(siswa_id, status) {
   const ex = DB.absensi.find(a => a.siswa_id===siswa_id && a.tanggal===absensiDate);
   if (ex) await supabaseClient.from('absensi').update({ status }).eq('id', ex.id);
-  else await supabaseClient.from('absensi').insert([{ siswa_id, tanggal: absensiDate, status, oleh: DB.profile.email }]);
+  else await supabaseClient.from('absensi').insert([{ siswa_id, tanggal: absensiDate, status, oleh: DB.profile ? DB.profile.email : '' }]);
 }
 
 function renderLaporanTentor() {
-  const role = DB.profile.role;
+  const role = DB.profile ? DB.profile.role : 'tentor';
   return `<div>
     <div class="flex justify-between items-center mb-4"><h1 class="text-2xl font-bold">Laporan Mengajar</h1>${role==='tentor'?`<button onclick="openLaporanForm()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm">+ Buat Laporan</button>`:''}</div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">${DB.laporan.map(l=>{ const s = DB.siswa.find(x=>x.id===l.siswa_id)||{}; const t = DB.tentor.find(x=>x.id===l.tentor_id)||{}; return `<div class="bg-white rounded-xl border overflow-hidden flex flex-col">${l.foto?`<img src="${l.foto}" class="w-full h-48 object-cover border-b" />`:''}<div class="p-4 flex-1"><div class="font-bold text-lg">${escapeHtml(s.nama)}</div><div class="text-xs text-gray-500 mb-2">${l.tanggal} • ${escapeHtml(t.nama)}</div><p class="text-sm text-gray-700">${escapeHtml(l.catatan)}</p></div></div>`; }).join('')}</div>
@@ -433,7 +458,7 @@ function openLaporanForm() {
     if (err) { alert("Gagal upload foto: " + err.message); return; }
     const { data: { publicUrl } } = supabaseClient.storage.from('foto_laporan').getPublicUrl(fileName);
     
-    const myTentor = DB.tentor.find(t => t.email === DB.profile.email) || DB.tentor[0];
+    const myTentor = DB.tentor.find(t => DB.profile && t.email === DB.profile.email) || DB.tentor[0] || { id: null };
     await supabaseClient.from('laporan').insert([{ tentor_id: myTentor.id, siswa_id: f.siswa_id.value, tanggal: f.tanggal.value, mapel: f.mapel.value, catatan: f.catatan.value, foto: publicUrl }]);
     closeModal();
   });
