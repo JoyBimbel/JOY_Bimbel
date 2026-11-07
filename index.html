@@ -106,7 +106,6 @@ window.onerror = function(msg, url, line, col, error) {
 let DB = { profile: null, siswa: [], tentor: [], jadwal: [], absensi: [], invoice: [], laporan: [] };
 let currentPage = 'dashboard';
 let absensiDate = new Date().toISOString().slice(0,10);
-let chartInstance = null;
 let realtimeChannel = null;
 let refreshTimeout = null;
 
@@ -243,7 +242,6 @@ function bootApp() {
       setTimeout(() => appPage.classList.remove('opacity-0'), 50);
     }
     
-    // PENGAMAN NULL CHECK
     const sidebarRole = document.getElementById('sidebar-role');
     if (sidebarRole && DB.profile) sidebarRole.textContent = DB.profile.role.toUpperCase() + ' - ' + DB.profile.nama;
     
@@ -305,7 +303,6 @@ function renderPage() {
   const pages = { dashboard: renderDashboard, siswa: () => renderSiswa(), tentor: () => renderTentor(), jadwal: () => renderJadwal(), absensi: () => renderAbsensi(), invoice: () => renderInvoice(), keuangan: () => renderLaporanKeuangan(), backup: () => renderBackup(), laporan_tentor: () => renderLaporanTentor() };
   content.innerHTML = (pages[currentPage] || renderDashboard)();
   if (typeof lucide !== 'undefined') lucide.createIcons();
-  if (currentPage === 'keuangan') setTimeout(mountChart, 50);
 }
 
 // ================= DASHBOARD =================
