@@ -35,11 +35,48 @@
   .animate-scale-in { animation: scaleIn 0.2s ease-out; }
   .animate-fade-in { animation: fadeIn 0.2s ease-out; }
   
+  /* CSS Stempel */
+  .stempel {
+    border: 4px solid #1e3a8a;
+    color: #1e3a8a;
+    border-radius: 50%;
+    width: 140px;
+    height: 140px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transform: rotate(-15deg);
+    opacity: 0.85;
+    box-shadow: inset 0 0 0 3px #fff, inset 0 0 0 6px #1e3a8a;
+    font-family: 'Arial Black', Impact, sans-serif;
+    text-align: center;
+    position: absolute;
+    bottom: 40px;
+    right: 40px;
+  }
+  .stempel-inner {
+    border-top: 2px solid #1e3a8a;
+    border-bottom: 2px solid #1e3a8a;
+    width: 90%;
+    padding: 4px 0;
+    font-size: 20px;
+    line-height: 1;
+  }
+  .stempel-sub {
+    font-size: 10px;
+    margin-top: 2px;
+    letter-spacing: 1px;
+  }
+
   #print-area { display: none; }
   @media print {
     body * { visibility: hidden; }
     #print-area, #print-area * { visibility: visible; }
-    #print-area { display: block !important; position: absolute; left: 0; top: 0; width: 100%; padding: 0; margin: 0; background: white; color: black; }
+    #print-area { 
+      display: block !important; position: absolute; left: 0; top: 0; width: 100%; 
+      padding: 0; margin: 0; background: white; color: black; 
+    }
     @page { margin: 1cm; }
   }
 </style>
@@ -1045,7 +1082,7 @@ function openInvoiceForm(id) {
     <form id="form-invoice">
       <div class="space-y-3">
         <div><label class="text-sm font-medium">Jenis Dokumen *</label>
-          <select name="jenis" onchange="refreshRecipients(this.value)" class="w-full border rounded-lg px-3 py-2 mt-1">
+          <select name="jenis" onchange="refreshRecipients(this.value); toggleItemFields(this.value);" class="w-full border rounded-lg px-3 py-2 mt-1">
             <option value="siswa" ${editing?.jenis==='siswa'||!editing?'selected':''}>👨‍👩‍👧 Tagihan / Invoice Siswa</option>
             <option value="tentor" ${editing?.jenis==='tentor'?'selected':''}>👨‍🏫 Slip Gaji Tentor</option>
           </select></div>
@@ -1078,21 +1115,45 @@ function openInvoiceForm(id) {
       const deskripsi = row.querySelector('.item-desk').value.trim();
       const qty = Number(row.querySelector('.item-qty').value) || 0;
       const harga = Number(row.querySelector('.item-harga').value) || 0;
-      if (deskripsi && qty > 0) items.push({ deskripsi, qty, harga });
+      let tanggal = null;
+      const tglInput = row.querySelector('.item-tgl');
+      if (tglInput && tglInput.value) tanggal = tglInput.value;
+      
+      if (deskripsi && qty > 0) items.push({ tanggal, deskripsi, qty, harga });
     });
     if (items.length === 0) { showToast('Minimal 1 item harus diisi', 'warning'); return; }
     const total = items.reduce((a,it)=>a+it.qty*it.harga, 0);
     const data = { jenis: f.jenis.value, untuk_id: f.untuk_id.value, periode: f.periode.value.trim(), items: items, total: total, status: f.status.value };
     if (editing) { await supabaseClient.from('invoice').update(data).eq('id', editing.id); }
     else { const no = `INV-${new Date().getFullYear()}-${Math.floor(Math.random()*1000)}`; await supabaseClient.from('invoice').insert([{ no_invoice: no, ...data, tanggal: todayISO() }]); }
-    showToast(editing ? 'Invoice diperbarui' : 'Invoice tersimpan', 'success');
+    showToast(editing ? 'Dokumen diperbarui' : 'Dokumen tersimpan', 'success');
     closeModal();
   });
 
-  refreshRecipients(editing?.jenis||'siswa', editing?.untuk_id);
+  const jenis = editing?.jenis || 'siswa';
+  refreshRecipients(jenis, editing?.untuk_id);
+  setTimeout(() => toggleItemFields(jenis), 50);
+
   const items = editing ? editing.items : [{deskripsi:'', qty:1, harga:0}];
   if(Array.isArray(items)) items.forEach(it => addItemRow(it));
   updateInvoiceTotal();
+}
+
+function toggleItemFields(jenis) {
+  document.querySelectorAll('#items-container .item-row').forEach(row => {
+    const tglInput = row.querySelector('.item-tgl');
+    if (jenis === 'tentor') {
+      if (!tglInput) {
+        const newTgl = document.createElement('input');
+        newTgl.type = 'date';
+        newTgl.className = 'item-tgl w-32 border rounded-lg px-2 py-1.5 text-sm';
+        newTgl.style.flexShrink = '0';
+        row.insertBefore(newTgl, row.firstChild);
+      }
+    } else {
+      if (tglInput) tglInput.remove();
+    }
+  });
 }
 
 function refreshRecipients(jenis, selectedId) {
@@ -1106,15 +1167,25 @@ function refreshRecipients(jenis, selectedId) {
 function addItemRow(item) {
   const container = document.getElementById('items-container');
   if (!container) return;
-  const it = item || { deskripsi:'', qty:1, harga:0 };
+  const it = item || { deskripsi:'', qty:1, harga:0, tanggal: '' };
+  const jenis = document.querySelector('select[name="jenis"]').value;
+  
   const div = document.createElement('div');
   div.className = 'item-row flex gap-2 items-start';
-  div.innerHTML = `
-    <input class="item-desk flex-1 border rounded-lg px-2 py-1.5 text-sm" placeholder="Deskripsi" value="${escapeHtml(it.deskripsi)}" />
+  
+  let html = '';
+  if (jenis === 'tentor') {
+    html += `<input type="date" class="item-tgl w-32 border rounded-lg px-2 py-1.5 text-sm flex-shrink-0" value="${it.tanggal || ''}" />`;
+  }
+  
+  html += `
+    <input class="item-desk flex-1 border rounded-lg px-2 py-1.5 text-sm" placeholder="${jenis==='tentor'?'Mata Pelajaran':'Deskripsi'}" value="${escapeHtml(it.deskripsi)}" />
     <input class="item-qty w-14 border rounded-lg px-2 py-1.5 text-sm" type="number" min="1" value="${it.qty}" oninput="updateInvoiceTotal()" />
     <input class="item-harga w-24 border rounded-lg px-2 py-1.5 text-sm" type="number" min="0" value="${it.harga}" oninput="updateInvoiceTotal()" />
     <button type="button" onclick="this.parentElement.remove(); updateInvoiceTotal();" class="text-red-500 hover:bg-red-50 p-1.5 rounded font-bold">✕</button>
   `;
+  
+  div.innerHTML = html;
   container.appendChild(div);
   updateInvoiceTotal();
 }
@@ -1158,56 +1229,133 @@ function buildInvoiceHTML(inv, target) {
     : `${target?.nama || '-'}<br/><span class="text-sm text-gray-600">${target?.mapel || '-'}</span>`;
   let itemsArr = inv.items;
   if (!Array.isArray(itemsArr)) itemsArr = [];
-  let docTitle = 'INVOICE', headerLabel = 'Ditagihkan kepada:', showBank = false;
+  
+  let docTitle = 'INVOICE';
+  let headerLabel = 'Ditagihkan kepada:';
+  let showBank = false;
+  let totalQty = 0;
+  
+  itemsArr.forEach(it => { totalQty += Number(it.qty)||0; });
+
   if (inv.jenis === 'tentor') { docTitle = 'SLIP GAJI'; headerLabel = 'Pembayaran kepada :'; }
   else if (inv.jenis === 'siswa') {
     if (inv.status === 'lunas') headerLabel = 'Pelunasan oleh :';
     else { headerLabel = 'Ditagihkan kepada:'; showBank = true; }
   }
-  return `<div class="bg-white p-6 md:p-8 max-w-2xl mx-auto border text-black">
-    <div class="flex justify-between items-start border-b pb-4 mb-4">
-      <div>
-        ${LOGO_URL ? `<img src="${LOGO_URL}" class="h-12 mb-2 object-contain" />` : ''}
-        <h2 class="text-2xl md:text-3xl font-bold text-orange-600">JOY BIMBEL</h2>
-        <p class="text-sm text-gray-600 mt-1">Telp: 081353206612</p>
+
+  let tableContent = '';
+  if (inv.jenis === 'tentor') {
+    tableContent = `
+      <table class="w-full text-xs md:text-sm border-collapse mb-6">
+        <thead><tr class="border-b-2 border-gray-300">
+          <th class="text-left py-2 px-1 md:px-2">Tanggal</th>
+          <th class="text-left py-2 px-1 md:px-2">Mata Pelajaran</th>
+          <th class="text-center py-2 px-1 md:px-2">Qty</th>
+          <th class="text-right py-2 px-1 md:px-2">Harga</th>
+          <th class="text-right py-2 px-1 md:px-2">Subtotal</th>
+        </tr></thead>
+        <tbody>
+          ${itemsArr.map(it=>`
+            <tr class="border-b">
+              <td class="py-2 px-1 md:px-2 whitespace-nowrap">${it.tanggal ? formatTanggal(it.tanggal) : '-'}</td>
+              <td class="py-2 px-1 md:px-2">${escapeHtml(it.deskripsi)}</td>
+              <td class="text-center py-2 px-1 md:px-2">${it.qty}</td>
+              <td class="text-right py-2 px-1 md:px-2">${rupiah(it.harga)}</td>
+              <td class="text-right py-2 px-1 md:px-2">${rupiah(it.qty*it.harga)}</td>
+            </tr>`).join('')}
+        </tbody>
+        <tfoot>
+          <tr class="bg-gray-50 border-b-2 border-gray-300 font-bold">
+            <td colspan="2" class="py-2 px-2 text-right">Total Pertemuan:</td>
+            <td class="text-center py-2 px-2">${totalQty}</td>
+            <td colspan="2" class="py-2 px-2 text-right"></td>
+          </tr>
+        </tfoot>
+      </table>
+      <div class="flex justify-end mt-4">
+        <div class="text-right">
+          <p class="text-sm text-gray-500">Total Fee Diterima</p>
+          <p class="text-2xl md:text-3xl font-bold text-orange-600">${rupiah(inv.total)}</p>
+          <p class="text-sm mt-1 text-emerald-600 font-bold">✅ LUNAS</p>
+        </div>
       </div>
-      <div class="text-right">
-        <p class="font-bold text-xl md:text-2xl">${docTitle}</p>
-        <p class="font-mono text-xs md:text-sm mt-1">${escapeHtml(inv.no_invoice)}</p>
-        <p class="text-xs md:text-sm text-gray-600">${escapeHtml(inv.tanggal)}</p>
+    `;
+  } else {
+    tableContent = `
+      <table class="w-full text-xs md:text-sm border-collapse mb-6">
+        <thead><tr class="border-b-2 border-gray-300">
+          <th class="text-left py-2 px-1 md:px-2">Deskripsi</th>
+          <th class="text-center py-2 px-1 md:px-2">Qty</th>
+          <th class="text-right py-2 px-1 md:px-2">Harga</th>
+          <th class="text-right py-2 px-1 md:px-2">Subtotal</th>
+        </tr></thead>
+        <tbody>
+          ${itemsArr.map(it=>`
+            <tr class="border-b">
+              <td class="py-2 px-1 md:px-2">${escapeHtml(it.deskripsi)}</td>
+              <td class="text-center py-2 px-1 md:px-2">${it.qty}</td>
+              <td class="text-right py-2 px-1 md:px-2">${rupiah(it.harga)}</td>
+              <td class="text-right py-2 px-1 md:px-2">${rupiah(it.qty*it.harga)}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+      <div class="flex justify-end mt-4">
+        <div class="text-right">
+          <p class="text-sm text-gray-500">Total</p>
+          <p class="text-2xl md:text-3xl font-bold text-orange-600">${rupiah(inv.total)}</p>
+          <p class="text-sm mt-1 ${inv.status==='lunas'?'text-emerald-600':'text-rose-600'} font-bold">${inv.status==='lunas'?'✅ LUNAS':'⏳ BELUM BAYAR'}</p>
+        </div>
       </div>
-    </div>
-    <div class="mb-6 text-sm">
-      <p class="text-xs text-gray-500 uppercase font-bold">${headerLabel}</p>
-      <p class="font-bold text-lg mt-1">${namaPenerima}</p>
-      <p class="text-sm text-gray-600 mt-1">Periode: ${escapeHtml(inv.periode)}</p>
-    </div>
-    <table class="w-full text-xs md:text-sm border-collapse mb-6">
-      <thead><tr class="border-b-2 border-gray-300">
-        <th class="text-left py-2 px-1 md:px-2">Deskripsi</th><th class="text-center py-2 px-1 md:px-2">Qty</th>
-        <th class="text-right py-2 px-1 md:px-2">Harga</th><th class="text-right py-2 px-1 md:px-2">Subtotal</th>
-      </tr></thead>
-      <tbody>${itemsArr.map(it=>`<tr class="border-b">
-        <td class="py-2 px-1 md:px-2">${escapeHtml(it.deskripsi)}</td>
-        <td class="text-center py-2 px-1 md:px-2">${it.qty}</td>
-        <td class="text-right py-2 px-1 md:px-2">${rupiah(it.harga)}</td>
-        <td class="text-right py-2 px-1 md:px-2">${rupiah(it.qty*it.harga)}</td>
-      </tr>`).join('')}</tbody>
-    </table>
-    <div class="flex justify-end mt-4"><div class="text-right">
-      <p class="text-sm text-gray-500">Total</p>
-      <p class="text-2xl md:text-3xl font-bold text-orange-600">${rupiah(inv.total)}</p>
-      <p class="text-sm mt-1 ${inv.status==='lunas'?'text-emerald-600':'text-rose-600'} font-bold">${inv.status==='lunas'?'✅ LUNAS':'⏳ BELUM BAYAR'}</p>
-    </div></div>
-    ${showBank ? `<div class="mt-8 pt-4 border-t border-gray-300 text-sm text-gray-700">
-      <p class="font-bold mb-2">Silakan lakukan pembayaran ke salah satu rekening berikut:</p>
-      <ul class="list-disc list-inside space-y-1 ml-2">
-        <li><b>BNI:</b> 2079385983</li><li><b>BCA:</b> 4720524304</li><li><b>BRI:</b> 180701015922501</li>
-      </ul>
-      <p class="mt-2 font-semibold">Atas Nama (a.n.): Joice Zhenrike Memmase</p>
-    </div>` : ''}
-    <div class="mt-6 text-xs text-gray-500"><p>Terima kasih atas kepercayaan Anda 🙏</p></div>
-  </div>`;
+    `;
+  }
+
+  return `
+    <div class="bg-white p-6 md:p-8 max-w-2xl mx-auto border text-black relative overflow-hidden">
+      <div class="flex justify-between items-start border-b pb-4 mb-4">
+        <div>
+          ${LOGO_URL ? `<img src="${LOGO_URL}" class="h-12 mb-2 object-contain" />` : ''}
+          <h2 class="text-2xl md:text-3xl font-bold text-orange-600">JOY BIMBEL</h2>
+          <p class="text-sm text-gray-600 mt-1">Telp: 081353206612</p>
+        </div>
+        <div class="text-right">
+          <p class="font-bold text-xl md:text-2xl">${docTitle}</p>
+          <p class="font-mono text-xs md:text-sm mt-1">${escapeHtml(inv.no_invoice)}</p>
+          <p class="text-xs md:text-sm text-gray-600">${escapeHtml(inv.tanggal)}</p>
+        </div>
+      </div>
+      <div class="mb-6 text-sm">
+        <p class="text-xs text-gray-500 uppercase font-bold">${headerLabel}</p>
+        <p class="font-bold text-lg mt-1">${namaPenerima}</p>
+        <p class="text-sm text-gray-600 mt-1">Periode: ${escapeHtml(inv.periode)}</p>
+        ${inv.jenis === 'tentor' && target?.nama_bank ? `
+          <div class="mt-2 bg-blue-50 border border-blue-200 p-2 rounded inline-block">
+            <span class="text-xs text-blue-700 font-semibold">Transfer ke:</span>
+            <span class="text-sm font-bold text-gray-800 ml-1">${escapeHtml(target.nama_bank)} - ${escapeHtml(target.no_rekening)}</span>
+          </div>
+        ` : ''}
+      </div>
+      
+      ${tableContent}
+      
+      ${showBank ? `<div class="mt-8 pt-4 border-t border-gray-300 text-sm text-gray-700">
+        <p class="font-bold mb-2">Silakan lakukan pembayaran ke salah satu rekening berikut:</p>
+        <ul class="list-disc list-inside space-y-1 ml-2">
+          <li><b>BNI:</b> 2079385983</li><li><b>BCA:</b> 4720524304</li><li><b>BRI:</b> 180701015922501</li>
+        </ul>
+        <p class="mt-2 font-semibold">Atas Nama (a.n.): Joice Zhenrike Memmase</p>
+      </div>` : ''}
+      
+      <div class="mt-6 text-xs text-gray-500"><p>Terima kasih atas kepercayaan Anda 🙏</p></div>
+
+      <!-- STEMPEL -->
+      ${inv.jenis === 'tentor' || inv.status === 'lunas' ? `
+      <div class="stempel">
+        <div class="text-[10px] tracking-widest font-bold mb-1">JOY BIMBEL</div>
+        <div class="stempel-inner">LUNAS</div>
+        <div class="stempel-sub">TGL: ${new Date().toLocaleDateString('id-ID')}</div>
+      </div>
+      ` : ''}
+    </div>`;
 }
 
 function printInvoice(id) {
@@ -1390,6 +1538,7 @@ function renderTentor() {
           </div>
           <div class="text-sm space-y-1.5 pt-2 border-t">
             <div class="flex gap-2"><span class="text-gray-500 flex-shrink-0 w-12">Email:</span><span class="truncate">${escapeHtml(t.email || '-')}</span></div>
+            ${t.nama_bank ? `<div class="flex gap-2"><span class="text-gray-500 flex-shrink-0 w-12">Bank:</span><span class="font-medium text-blue-600">${escapeHtml(t.nama_bank)} - ${escapeHtml(t.no_rekening)}</span></div>` : ''}
             <div class="flex gap-2"><span class="text-gray-500 flex-shrink-0 w-12">Siswa:</span><span class="font-semibold">${siswaCount[t.id] || 0} siswa</span></div>
           </div>
         </div>
@@ -1399,12 +1548,12 @@ function renderTentor() {
       <table class="w-full text-sm">
         <thead class="bg-gray-50"><tr>
           <th class="text-left px-4 py-3">Nama</th><th class="text-left px-4 py-3">Mapel</th>
-          <th class="text-left px-4 py-3">Email</th><th class="text-left px-4 py-3">Siswa</th><th class="text-right px-4 py-3">Aksi</th>
+          <th class="text-left px-4 py-3">Bank</th><th class="text-left px-4 py-3">Siswa</th><th class="text-right px-4 py-3">Aksi</th>
         </tr></thead>
         <tbody>${filtered.map(t=>`<tr class="border-t hover:bg-gray-50">
           <td class="px-4 py-3 font-medium">${escapeHtml(t.nama)}</td>
           <td class="px-4 py-3">${escapeHtml(t.mapel)}</td>
-          <td class="px-4 py-3">${escapeHtml(t.email)}</td>
+          <td class="px-4 py-3 text-xs">${t.nama_bank ? `${escapeHtml(t.nama_bank)}<br/><span class="text-gray-500">${escapeHtml(t.no_rekening)}</span>` : '-'}</td>
           <td class="px-4 py-3"><span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">${siswaCount[t.id] || 0}</span></td>
           <td class="px-4 py-3 text-right whitespace-nowrap">
             <button onclick="openTentorForm('${t.id}')" class="text-orange-600 p-1.5 hover:bg-orange-50 rounded"><i data-lucide="pencil" class="w-4 h-4"></i></button>
@@ -1419,7 +1568,14 @@ function renderTentor() {
 
 async function simpanTentor(e) {
   const f = e.target; const id = f.dataset.id;
-  const data = { nama: f.nama.value, email: f.email.value, mapel: f.mapel.value, tarif: Number(f.tarif.value)||0 };
+  const data = { 
+    nama: f.nama.value, 
+    email: f.email.value, 
+    mapel: f.mapel.value, 
+    tarif: Number(f.tarif.value)||0,
+    nama_bank: f.nama_bank.value || null,
+    no_rekening: f.no_rekening.value || null
+  };
   if (id) await supabaseClient.from('tentor').update(data).eq('id', id);
   else await supabaseClient.from('tentor').insert([data]);
   showToast(id ? 'Data tentor diperbarui' : 'Tentor baru ditambahkan', 'success');
@@ -1430,9 +1586,15 @@ function openTentorForm(id) {
   const editing = id ? DB.tentor.find(x=>x.id===id) : null;
   const body = `<form data-id="${id||''}"><div class="space-y-3">
     <div><label class="text-sm">Nama *</label><input name="nama" required value="${escapeHtml(editing?.nama||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
-    <div><label class="text-sm">Email</label><input name="email" type="email" value="${escapeHtml(editing?.email||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
-    <div><label class="text-sm">Mapel</label><input name="mapel" value="${escapeHtml(editing?.mapel||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+    <div class="grid grid-cols-2 gap-3">
+      <div><label class="text-sm">Email</label><input name="email" type="email" value="${escapeHtml(editing?.email||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+      <div><label class="text-sm">Mapel</label><input name="mapel" value="${escapeHtml(editing?.mapel||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+    </div>
     <div><label class="text-sm">Tarif per Sesi</label><input name="tarif" type="number" value="${editing?.tarif||''}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+    <div class="grid grid-cols-2 gap-3">
+      <div><label class="text-sm">Nama Bank</label><input name="nama_bank" value="${escapeHtml(editing?.nama_bank||'')}" placeholder="BNI / BCA / BRI" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+      <div><label class="text-sm">No Rekening</label><input name="no_rekening" value="${escapeHtml(editing?.no_rekening||'')}" placeholder="Nomor rekening" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+    </div>
     <button type="submit" class="w-full bg-emerald-600 text-white py-2 rounded-lg font-semibold">Simpan</button>
   </div></form>`;
   openModal(editing?'Edit Tentor':'Tambah Tentor', body, simpanTentor);
@@ -1518,94 +1680,4 @@ function renderJadwal() {
             ${upcoming.map(j => {
               const t = DB.tentor.find(x=>x.id===j.tentor_id) || {};
               return `<div class="bg-orange-50 border border-orange-200 rounded-lg p-3 flex justify-between items-start gap-2">
-                <div class="flex-1 min-w-0">
-                  <div class="font-semibold text-gray-800 text-sm">${formatTanggal(j.tanggal)}</div>
-                  <div class="text-xs text-gray-600 mt-0.5 flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> ${formatJam(j.jam_mulai)} - ${formatJam(j.jam_selesai)}</div>
-                  <div class="text-xs text-orange-600 mt-1 font-medium truncate">Tentor: ${escapeHtml(t.nama || '-')}</div>
-                </div>
-                ${role==='admin'?`<button onclick="event.stopPropagation(); deleteRecord('jadwal','${j.id}','jadwal ${formatTanggal(j.tanggal)}')" class="text-red-400 hover:text-red-600 p-1.5 rounded hover:bg-red-50 flex-shrink-0"><i data-lucide="trash-2" class="w-4 h-4"></i></button>`:''}
-              </div>`;
-            }).join('')}
-            ${past.length > 0 ? `
-              <details class="mt-2">
-                <summary class="text-xs text-gray-500 cursor-pointer hover:text-gray-700 font-medium">Lihat ${past.length} jadwal lampau</summary>
-                <div class="space-y-2 mt-2">
-                  ${past.map(j => {
-                    const t = DB.tentor.find(x=>x.id===j.tentor_id) || {};
-                    return `<div class="bg-gray-50 border border-gray-200 rounded-lg p-3 flex justify-between items-start gap-2 opacity-75">
-                      <div class="flex-1 min-w-0">
-                        <div class="font-semibold text-gray-700 text-sm">${j.tanggal ? formatTanggal(j.tanggal) : (j.hari || 'Tanggal belum diatur')}</div>
-                        <div class="text-xs text-gray-500 mt-0.5 flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> ${formatJam(j.jam_mulai)} - ${formatJam(j.jam_selesai)}</div>
-                        <div class="text-xs text-gray-500 mt-1 truncate">Tentor: ${escapeHtml(t.nama || '-')}</div>
-                      </div>
-                      ${role==='admin'?`<button onclick="event.stopPropagation(); deleteRecord('jadwal','${j.id}','jadwal ${j.tanggal || j.hari}')" class="text-red-400 hover:text-red-600 p-1.5 rounded hover:bg-red-50 flex-shrink-0"><i data-lucide="trash-2" class="w-4 h-4"></i></button>`:''}
-                    </div>`;
-                  }).join('')}
-                </div>
-              </details>
-            ` : ''}
-          </div>
-          ` : ''}
-        </div>`;
-      }).join('')}
-    </div>`}
-  </div>`;
-}
-
-function toggleJadwalCard(siswaId) {
-  expandedJadwal[siswaId] = !expandedJadwal[siswaId];
-  renderPage();
-}
-
-async function simpanJadwal(e) {
-  const f = e.target;
-  const tanggal = f.tanggal.value;
-  const d = new Date(tanggal + 'T00:00:00');
-  const hari = NAMA_HARI[d.getDay()];
-  await supabaseClient.from('jadwal').insert([{ 
-    siswa_id: f.siswa_id.value, 
-    tentor_id: f.tentor_id.value, 
-    tanggal: tanggal,
-    hari: hari,
-    jam_mulai: f.jam_mulai.value, 
-    jam_selesai: f.jam_selesai.value 
-  }]);
-  showToast('Jadwal berhasil ditambahkan', 'success');
-  closeModal();
-}
-
-function openJadwalForm() {
-  const body = `<form><div class="space-y-3">
-    <div><label class="text-sm">Siswa</label><select name="siswa_id" required class="w-full border rounded-lg px-3 py-2 mt-1">${DB.siswa.map(s=>`<option value="${s.id}">${escapeHtml(s.nama)}${s.kelas?` (${escapeHtml(s.kelas)})`:''}${s.mapel?` - ${escapeHtml(s.mapel)}`:''}</option>`).join('')}</select></div>
-    <div><label class="text-sm">Tentor</label><select name="tentor_id" required class="w-full border rounded-lg px-3 py-2 mt-1">${DB.tentor.map(t=>`<option value="${t.id}">${escapeHtml(t.nama)}</option>`).join('')}</select></div>
-    <div><label class="text-sm">Tanggal Les *</label><input type="date" name="tanggal" required value="${todayISO()}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
-    <div class="grid grid-cols-2 gap-2">
-      <div><label class="text-sm">Jam Mulai</label><input type="time" name="jam_mulai" value="15:00" required class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
-      <div><label class="text-sm">Jam Selesai</label><input type="time" name="jam_selesai" value="16:30" required class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
-    </div>
-    <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
-      <p class="text-xs text-blue-700"><b>💡 Tips:</b> Untuk siswa paket 2×/bulan, tinggal tambahkan jadwal baru setiap akan les di tanggal yang sudah disepakati. Fleksibel!</p>
-    </div>
-    <button type="submit" class="w-full bg-orange-600 text-white py-2 rounded-lg font-semibold">Simpan</button>
-  </div></form>`;
-  openModal('Tambah Jadwal Les', body, simpanJadwal);
-}
-
-// ================= DELETE HELPER =================
-async function deleteRecord(table, id, name = 'data ini') {
-  showConfirm('Hapus Data?', `Yakin ingin menghapus "${name}"? Tindakan ini tidak bisa dibatalkan.`, async () => {
-    const { error } = await supabaseClient.from(table).delete().eq('id', id);
-    if (error) showToast('Gagal menghapus: ' + error.message, 'error');
-    else showToast('Data berhasil dihapus', 'success');
-  });
-}
-
-// ================= INIT =================
-window.addEventListener('DOMContentLoaded', async () => { 
-  if (typeof lucide !== 'undefined') lucide.createIcons(); 
-  await loadLogo();
-  checkSession(); 
-});
-</script>
-</body>
-</html>
+                <div class="flex
