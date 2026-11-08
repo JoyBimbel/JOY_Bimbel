@@ -295,6 +295,44 @@ async function loadAllData(user) {
     DB.users = resUsers.data || [];
     if (resSettings.data) { resSettings.data.forEach(s => DB.settings[s.key] = s.value); if (DB.settings.logo_url) LOGO_URL = DB.settings.logo_url; }
 
+    // ============================================================
+    // ===== BATASI AKSES UNTUK ROLE TENTOR =======================
+    // ============================================================
+    // Setiap tentor hanya boleh melihat siswa, jadwal, dan laporan
+    // miliknya sendiri. Tentor TIDAK BOLEH tahu tentor lain
+    // mengajar siswa siapa saja (mencegah kecemburuan sosial).
+    if (profile.role === 'tentor') {
+      const myTentorId = profile.tentor_id || DB.tentor.find(t => t.email === profile.email)?.id;
+
+      if (myTentorId) {
+        // 1) Jadwal: hanya milik tentor ini
+        DB.jadwal = DB.jadwal.filter(j => j.tentor_id === myTentorId);
+
+        // 2) Laporan: hanya milik tentor ini
+        DB.laporan = DB.laporan.filter(l => l.tentor_id === myTentorId);
+
+        // 3) Siswa: hanya siswa yang diajar (lewat jadwal) ATAU
+        //    yang ditugaskan langsung ke tentor ini (siswa.tentor_id)
+        const mySiswaIds = new Set(DB.jadwal.map(j => j.siswa_id));
+        DB.siswa.forEach(s => { if (s.tentor_id === myTentorId) mySiswaIds.add(s.id); });
+        DB.siswa = DB.siswa.filter(s => mySiswaIds.has(s.id));
+
+        // 4) Data tentor lain disembunyikan — hanya simpan record sendiri
+        //    (dipakai untuk lookup nama pada jadwal & laporan miliknya)
+        DB.tentor = DB.tentor.filter(t => t.id === myTentorId);
+
+        // 5) Invoice & daftar akun tidak boleh diakses tentor
+        DB.invoice = [];
+        DB.users   = [];
+      } else {
+        // Akun tentor tidak terhubung ke data tentor manapun
+        // → kosongkan semua (lebih aman daripada melihat semua data)
+        DB.siswa = []; DB.jadwal = []; DB.laporan = [];
+        DB.invoice = []; DB.users = [];
+      }
+    }
+    // ============================================================
+
     bootApp();
     
     if (realtimeChannel) await supabaseClient.removeChannel(realtimeChannel);
@@ -421,9 +459,11 @@ function renderDashboard() {
   const pemasukanBulan = invBulan.filter(i=>i.jenis==='siswa' && i.status==='lunas').reduce((a,b)=>a+b.total,0);
   const pengeluaranBulan = invBulan.filter(i=>i.jenis==='tentor' && i.status==='lunas').reduce((a,b)=>a+b.total,0);
 
-  const totalSiswa = isAdmin ? DB.siswa.length : (myTentorId ? DB.jadwal.filter(j=>j.tentor_id===myTentorId).map(j=>j.siswa_id).filter((v,i,arr)=>arr.indexOf(v)===i).length : 0);
+  // Untuk tentor, DB.siswa & DB.laporan sudah difilter di loadAllData
+  // → cukup pakai .length
+  const totalSiswa = DB.siswa.length;
   const totalTentor = DB.tentor.length;
-  const totalLaporan = isAdmin ? DB.laporan.length : (myTentorId ? DB.laporan.filter(l => l.tentor_id === myTentorId).length : 0);
+  const totalLaporan = DB.laporan.length;
 
   return `
     <div class="space-y-6">
