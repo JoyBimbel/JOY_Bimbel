@@ -1052,8 +1052,15 @@ function openInvoiceForm(id) {
             <option value="siswa" ${editing?.jenis==='siswa'||!editing?'selected':''}>👨‍👩‍👧 Tagihan / Invoice Siswa</option>
             <option value="tentor" ${editing?.jenis==='tentor'?'selected':''}>👨‍🏫 Slip Gaji Tentor</option>
           </select></div>
-        <div><label class="text-sm font-medium">Penerima *</label>
-          <select name="untuk_id" id="recipient-select" required onchange="onRecipientChange(this.value)" class="w-full border rounded-lg px-3 py-2 mt-1"></select></div>
+        <div>
+          <label class="text-sm font-medium">Penerima *</label>
+          <div class="flex gap-2 mt-1">
+            <select name="untuk_id" id="recipient-select" required onchange="onRecipientChange(this.value)" class="flex-1 border rounded-lg px-3 py-2"></select>
+            <button type="button" id="btn-fetch-jadwal" onclick="onRecipientChange(document.getElementById('recipient-select').value)" class="hidden bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-1">
+              <i data-lucide="refresh-cw" class="w-4 h-4"></i> Tarik Jadwal
+            </button>
+          </div>
+        </div>
         <div><label class="text-sm font-medium">Periode</label>
           <input name="periode" value="${escapeHtml(editing?.periode||periodeNow())}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
         <div>
@@ -1113,10 +1120,15 @@ function onJenisChange(jenis) {
   document.getElementById('items-container').innerHTML = '';
   addItemRow();
   updateInvoiceTotal();
+  const btn = document.getElementById('btn-fetch-jadwal');
+  if (btn) btn.classList.toggle('hidden', jenis !== 'tentor');
 }
 
 function onRecipientChange(untukId) {
   const jenis = document.querySelector('select[name="jenis"]').value;
+  const btn = document.getElementById('btn-fetch-jadwal');
+  if (btn) btn.classList.toggle('hidden', jenis !== 'tentor');
+
   if (jenis === 'tentor' && untukId) {
     const tentor = DB.tentor.find(t => t.id === untukId);
     if (!tentor) return;
@@ -1146,8 +1158,10 @@ function onRecipientChange(untukId) {
           harga: tentor.tarif
         });
       });
+      showToast(`Ditemukan ${jadwalTentor.length} jadwal mengajar`, 'success');
     } else {
       addItemRow();
+      showToast('Tidak ada jadwal baru yang belum ditagihkan', 'warning');
     }
     updateInvoiceTotal();
   }
