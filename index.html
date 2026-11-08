@@ -1089,10 +1089,15 @@ function openInvoiceForm(id) {
       const qty = Number(row.querySelector('.item-qty').value) || 0;
       const harga = Number(row.querySelector('.item-harga').value) || 0;
       let tanggal = null;
+      let siswa_id = null;
+      
       const tglInput = row.querySelector('.item-tgl');
       if (tglInput && tglInput.value) tanggal = tglInput.value;
       
-      if (deskripsi && qty > 0) items.push({ tanggal, deskripsi, qty, harga });
+      const selSiswa = row.querySelector('.item-siswa');
+      if (selSiswa && selSiswa.value) siswa_id = selSiswa.value;
+      
+      if (deskripsi && qty > 0) items.push({ tanggal, siswa_id, deskripsi, qty, harga });
     });
     if (items.length === 0) { showToast('Minimal 1 item harus diisi', 'warning'); return; }
     const total = items.reduce((a,it)=>a+it.qty*it.harga, 0);
@@ -1142,27 +1147,81 @@ function onRecipientChange(untukId) {
     });
     
     const today = todayISO();
-    const jadwalTentor = DB.jadwal.filter(j => j.tentor_id === untukId && j.tanggal && j.tanggal <= today && !invoicedDates.has(j.tanggal));
+    
+    const allJadwalTentor = DB.jadwal.filter(j => j.tentor_id === untukId);
+    const jadwalTentor = allJadwalTentor.filter(j => {
+      if (!j.tanggal) return false;
+      if (j.tanggal > today) return false;
+      if (invoicedDates.has(j.tanggal)) return false;
+      return true;
+    });
+    
+    const jadwalLama = allJadwalTentor.filter(j => !j.tanggal);
     
     document.getElementById('items-container').innerHTML = '';
     
+    let addedCount = 0;
+    const itemsToInsert = [];
+    
     if (jadwalTentor.length > 0) {
-      jadwalTentor.sort((a,b) => a.tanggal.localeCompare(b.tanggal));
       jadwalTentor.forEach(j => {
         const siswa = DB.siswa.find(s => s.id === j.siswa_id);
-        const mapel = siswa?.mapel || tentor.mapel || 'Les Privat';
-        addItemRow({
-          tanggal: j.tanggal,
-          deskripsi: mapel,
-          qty: 1,
-          harga: tentor.tarif
+        if (!siswa) return;
+        
+        const laporan = DB.laporan.find(l => l.tanggal === j.tanggal && l.siswa_id === j.siswa_id && l.tentor_id === untukId);
+        const materi = laporan && laporan.topik ? laporan.topik : (siswa.mapel || tentor.mapel || 'Les Privat');
+        
+        itemsToInsert.push({ 
+          tanggal: j.tanggal, 
+          siswa_id: j.siswa_id, 
+          deskripsi: materi, 
+          qty: 1, 
+          harga: tentor.tarif 
         });
+        addedCount++;
       });
-      showToast(`Ditemukan ${jadwalTentor.length} jadwal mengajar`, 'success');
-    } else {
-      addItemRow();
-      showToast('Tidak ada jadwal baru yang belum ditagihkan', 'warning');
     }
+    
+    if (jadwalLama.length > 0) {
+      jadwalLama.forEach(j => {
+        const siswa = DB.siswa.find(s => s.id === j.siswa_id);
+        if (!siswa) return;
+        
+        const laporan = DB.laporan.find(l => l.siswa_id === j.siswa_id && l.tentor_id === untukId);
+        const materi = laporan && laporan.topik ? laporan.topik : (siswa.mapel || tentor.mapel || 'Les Privat');
+        
+        itemsToInsert.push({ 
+          tanggal: today, 
+          siswa_id: j.siswa_id, 
+          deskripsi: materi, 
+          qty: 1, 
+          harga: tentor.tarif 
+        });
+        addedCount++;
+      });
+    }
+    
+    // Sort by siswa, then tanggal
+    itemsToInsert.sort((a,b) => {
+      const nameA = DB.siswa.find(s=>s.id===a.siswa_id)?.nama || '';
+      const nameB = DB.siswa.find(s=>s.id===b.siswa_id)?.nama || '';
+      if (nameA !== nameB) return nameA.localeCompare(nameB);
+      return a.tanggal.localeCompare(b.tanggal);
+    });
+    
+    itemsToInsert.forEach(it => addItemRow(it));
+    
+    if (addedCount > 0) {
+      showToast(`Berhasil menarik ${addedCount} data jadwal`, 'success');
+    } else {
+      if (allJadwalTentor.length === 0) {
+        showToast(`Tentor ini belum memiliki jadwal sama sekali. Silakan buat jadwal terlebih dahulu.`, 'warning');
+      } else {
+        showToast(`Semua jadwal tentor ini sudah pernah ditagihkan, atau tanggalnya masih di masa depan.`, 'info');
+      }
+      addItemRow();
+    }
+    
     updateInvoiceTotal();
   }
 }
@@ -1170,17 +1229,25 @@ function onRecipientChange(untukId) {
 function toggleItemFields(jenis) {
   document.querySelectorAll('#items-container .item-row').forEach(row => {
     const tglInput = row.querySelector('.item-tgl');
+    const siswaInput = row.querySelector('.item-siswa');
     if (jenis === 'tentor') {
       if (!tglInput) {
         const newTgl = document.createElement('input');
         newTgl.type = 'date';
-        newTgl.className = 'item-tgl w-32 border rounded-lg px-2 py-1.5 text-sm';
-        newTgl.style.flexShrink = '0';
+        newTgl.className = 'item-tgl w-32 border rounded-lg px-2 py-1.5 text-sm flex-shrink-0';
         newTgl.required = true;
         row.insertBefore(newTgl, row.firstChild);
       }
+      if (!siswaInput) {
+        const newSiswa = document.createElement('select');
+        newSiswa.className = 'item-siswa w-32 border rounded-lg px-2 py-1.5 text-sm flex-shrink-0';
+        newSiswa.required = true;
+        newSiswa.innerHTML = `<option value="">Pilih</option>` + DB.siswa.map(s => `<option value="${s.id}">${s.nama}</option>`).join('');
+        row.insertBefore(newSiswa, row.children[1]);
+      }
     } else {
       if (tglInput) tglInput.remove();
+      if (siswaInput) siswaInput.remove();
     }
   });
 }
@@ -1196,22 +1263,26 @@ function refreshRecipients(jenis, selectedId) {
 function addItemRow(item) {
   const container = document.getElementById('items-container');
   if (!container) return;
-  const it = item || { deskripsi:'', qty:1, harga:0, tanggal: '' };
+  const it = item || { deskripsi:'', qty:1, harga:0, tanggal: '', siswa_id: '' };
   const jenis = document.querySelector('select[name="jenis"]').value;
   
   const div = document.createElement('div');
-  div.className = 'item-row flex gap-2 items-start';
-  
+  div.className = 'item-row flex flex-col md:flex-row gap-2 items-start md:items-center bg-gray-50 md:bg-transparent p-2 md:p-0 rounded-lg md:rounded-none border md:border-0 mb-2 md:mb-0';
+
   let html = '';
   if (jenis === 'tentor') {
-    html += `<input type="date" class="item-tgl w-32 border rounded-lg px-2 py-1.5 text-sm flex-shrink-0" value="${it.tanggal || ''}" required />`;
+    html += `<input type="date" class="item-tgl w-full md:w-32 border rounded-lg px-2 py-1.5 text-sm flex-shrink-0" value="${it.tanggal || ''}" required />`;
+    html += `<select class="item-siswa w-full md:w-32 border rounded-lg px-2 py-1.5 text-sm flex-shrink-0" required>
+      <option value="">Pilih</option>
+      ${DB.siswa.map(s => `<option value="${s.id}" ${it.siswa_id===s.id?'selected':''}>${s.nama}</option>`).join('')}
+    </select>`;
   }
   
   html += `
-    <input class="item-desk flex-1 border rounded-lg px-2 py-1.5 text-sm" placeholder="${jenis==='tentor'?'Mata Pelajaran':'Deskripsi'}" value="${escapeHtml(it.deskripsi)}" required />
-    <input class="item-qty w-14 border rounded-lg px-2 py-1.5 text-sm" type="number" min="1" value="${it.qty}" oninput="updateInvoiceTotal()" required />
-    <input class="item-harga w-24 border rounded-lg px-2 py-1.5 text-sm" type="number" min="0" value="${it.harga}" oninput="updateInvoiceTotal()" required />
-    <button type="button" onclick="this.parentElement.remove(); updateInvoiceTotal();" class="text-red-500 hover:bg-red-50 p-1.5 rounded font-bold">✕</button>
+    <input class="item-desk flex-1 w-full border rounded-lg px-2 py-1.5 text-sm" placeholder="${jenis==='tentor'?'Materi / Topik':'Deskripsi'}" value="${escapeHtml(it.deskripsi)}" required />
+    <input class="item-qty w-full md:w-14 border rounded-lg px-2 py-1.5 text-sm" type="number" min="1" value="${it.qty}" oninput="updateInvoiceTotal()" required />
+    <input class="item-harga w-full md:w-24 border rounded-lg px-2 py-1.5 text-sm" type="number" min="0" value="${it.harga}" oninput="updateInvoiceTotal()" required />
+    <button type="button" onclick="this.parentElement.remove(); updateInvoiceTotal();" class="text-red-500 hover:bg-red-50 p-1.5 rounded font-bold self-end md:self-auto">✕</button>
   `;
   
   div.innerHTML = html;
@@ -1274,28 +1345,51 @@ function buildInvoiceHTML(inv, target) {
 
   let tableContent = '';
   if (inv.jenis === 'tentor') {
+    let currentSiswaId = null;
+    let rowsHtml = '';
+    
+    itemsArr.forEach(it => {
+      const siswaData = it.siswa_id ? DB.siswa.find(s => s.id === it.siswa_id) : null;
+      const namaSiswa = siswaData ? siswaData.nama : 'Siswa tidak diketahui';
+      
+      // Add separator if student changes
+      if (it.siswa_id && it.siswa_id !== currentSiswaId) {
+        currentSiswaId = it.siswa_id;
+        rowsHtml += `
+          <tr class="bg-orange-100 border-y-2 border-orange-300 font-bold text-orange-900">
+            <td colspan="5" class="py-2 px-2 text-left">
+              <i data-lucide="user" class="w-4 h-4 inline-block mr-1 mb-0.5"></i> ${escapeHtml(namaSiswa)}
+            </td>
+          </tr>
+        `;
+      }
+      
+      rowsHtml += `
+        <tr class="border-b">
+          <td class="py-2 px-1 md:px-2 whitespace-nowrap text-center text-gray-600 text-xs md:text-sm">${it.tanggal ? formatTanggal(it.tanggal) : '-'}</td>
+          <td class="py-2 px-1 md:px-2 text-sm">${escapeHtml(it.deskripsi)}</td>
+          <td class="text-center py-2 px-1 md:px-2 text-sm">${it.qty}</td>
+          <td class="text-right py-2 px-1 md:px-2 text-sm">${rupiah(it.harga)}</td>
+          <td class="text-right py-2 px-1 md:px-2 text-sm font-medium">${rupiah(it.qty*it.harga)}</td>
+        </tr>
+      `;
+    });
+
     tableContent = `
       <table class="w-full text-xs md:text-sm border-collapse mb-6">
-        <thead><tr class="border-b-2 border-gray-300">
-          <th class="text-left py-2 px-1 md:px-2">Tanggal</th>
-          <th class="text-left py-2 px-1 md:px-2">Mata Pelajaran</th>
-          <th class="text-center py-2 px-1 md:px-2">Qty</th>
-          <th class="text-right py-2 px-1 md:px-2">Harga</th>
-          <th class="text-right py-2 px-1 md:px-2">Subtotal</th>
+        <thead><tr class="border-b-2 border-gray-300 bg-gray-50">
+          <th class="text-center py-2 px-1 md:px-2 w-24">Tanggal</th>
+          <th class="text-left py-2 px-1 md:px-2">Materi / Topik</th>
+          <th class="text-center py-2 px-1 md:px-2 w-12">Qty</th>
+          <th class="text-right py-2 px-1 md:px-2 w-24">Harga</th>
+          <th class="text-right py-2 px-1 md:px-2 w-28">Subtotal</th>
         </tr></thead>
         <tbody>
-          ${itemsArr.map(it=>`
-            <tr class="border-b">
-              <td class="py-2 px-1 md:px-2 whitespace-nowrap">${it.tanggal ? formatTanggal(it.tanggal) : '-'}</td>
-              <td class="py-2 px-1 md:px-2">${escapeHtml(it.deskripsi)}</td>
-              <td class="text-center py-2 px-1 md:px-2">${it.qty}</td>
-              <td class="text-right py-2 px-1 md:px-2">${rupiah(it.harga)}</td>
-              <td class="text-right py-2 px-1 md:px-2">${rupiah(it.qty*it.harga)}</td>
-            </tr>`).join('')}
+          ${rowsHtml}
         </tbody>
         <tfoot>
-          <tr class="bg-gray-50 border-b-2 border-gray-300 font-bold">
-            <td colspan="2" class="py-2 px-2 text-right">Total Pertemuan:</td>
+          <tr class="bg-gray-100 border-b-2 border-gray-400 font-bold">
+            <td colspan="2" class="py-2 px-3 text-right">Total Pertemuan:</td>
             <td class="text-center py-2 px-2">${totalQty}</td>
             <td colspan="2" class="py-2 px-2 text-right"></td>
           </tr>
