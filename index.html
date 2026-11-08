@@ -108,6 +108,11 @@
   </div>
 </div>
 
+<!-- IMAGE PREVIEW MODAL -->
+<div id="image-preview-modal" class="hidden fixed inset-0 bg-black/90 z-[1000] flex items-center justify-center p-4" onclick="this.classList.add('hidden')">
+  <img id="image-preview-img" src="" class="max-w-full max-h-full object-contain animate-scale-in" />
+</div>
+
 <div id="print-area"></div>
 
 <script>
@@ -158,6 +163,14 @@ function formatTanggal(tgl) {
   return `${NAMA_HARI_SINGKAT[d.getDay()]}, ${d.getDate()} ${NAMA_BULAN_SINGKAT[d.getMonth()]} ${d.getFullYear()}`;
 }
 
+function getFotoArray(fotoStr) {
+  if (!fotoStr) return [];
+  if (typeof fotoStr === 'string' && fotoStr.startsWith('[')) {
+    try { return JSON.parse(fotoStr); } catch(e) { return [fotoStr]; }
+  }
+  return [fotoStr];
+}
+
 // ================= TOAST & CONFIRM =================
 function showToast(message, type = 'success') {
   const colors = { success: 'bg-emerald-500', error: 'bg-red-500', info: 'bg-blue-500', warning: 'bg-amber-500' };
@@ -198,6 +211,11 @@ function showConfirm(title, message, onConfirm, confirmLabel = 'Ya, Lanjutkan', 
   overlay.querySelector('.cancel-btn').onclick = () => overlay.remove();
   overlay.querySelector('.confirm-btn').onclick = () => { overlay.remove(); onConfirm(); };
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+}
+
+function showImagePreview(src) {
+  document.getElementById('image-preview-img').src = src;
+  document.getElementById('image-preview-modal').classList.remove('hidden');
 }
 
 // ================= LOGO MANAGEMENT =================
@@ -504,9 +522,11 @@ function renderDashboard() {
                   ${recentLaporan.map(l => {
                     const siswa = DB.siswa.find(x=>x.id===l.siswa_id) || {};
                     const tentor = DB.tentor.find(x=>x.id===l.tentor_id) || {};
+                    const fotos = getFotoArray(l.foto);
+                    const thumb = fotos.length > 0 ? fotos[0] : null;
                     return `
                       <div class="flex gap-3 p-2 hover:bg-gray-50 rounded-lg transition cursor-pointer" onclick="navigate('laporan_tentor')">
-                        ${l.foto ? `<img src="${l.foto}" class="w-16 h-16 rounded-lg object-cover flex-shrink-0" />` : `<div class="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0"><i data-lucide="image" class="w-6 h-6 text-gray-300"></i></div>`}
+                        ${thumb ? `<img src="${thumb}" class="w-16 h-16 rounded-lg object-cover flex-shrink-0" />` : `<div class="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0"><i data-lucide="image" class="w-6 h-6 text-gray-300"></i></div>`}
                         <div class="flex-1 min-w-0">
                           <div class="font-semibold text-sm truncate">${escapeHtml(siswa.nama || '-')}</div>
                           <div class="text-xs text-gray-500 truncate">${l.tanggal} • ${escapeHtml(tentor.nama || '-')}</div>
@@ -850,8 +870,19 @@ function renderLaporanTentor() {
       ${filtered.map(l=>{ 
         const s = DB.siswa.find(x=>x.id===l.siswa_id)||{}; 
         const t = DB.tentor.find(x=>x.id===l.tentor_id)||{}; 
+        const fotos = getFotoArray(l.foto);
+        
+        let imageHtml = '';
+        if (fotos.length > 1) {
+          imageHtml = `<div class="grid grid-cols-2 gap-1 p-2 bg-gray-50 border-b">
+            ${fotos.map(f => `<img src="${f}" class="w-full h-32 object-cover rounded cursor-pointer hover:opacity-90 transition" onclick="showImagePreview('${f}')" />`).join('')}
+          </div>`;
+        } else if (fotos.length === 1) {
+          imageHtml = `<img src="${fotos[0]}" class="w-full h-48 object-cover border-b cursor-pointer hover:opacity-90 transition" onclick="showImagePreview('${fotos[0]}')" />`;
+        }
+
         return `<div class="bg-white rounded-xl border overflow-hidden flex flex-col relative hover:shadow-md transition">
-          ${l.foto?`<img src="${l.foto}" class="w-full h-48 object-cover border-b" />`:''}
+          ${imageHtml}
           <div class="p-4 flex-1 pb-12">
             <div class="flex items-start justify-between gap-2 mb-1">
               <div class="font-bold text-lg">${escapeHtml(s.nama || '-')}</div>
@@ -921,30 +952,57 @@ function openLaporanForm(id) {
       </div>
       
       <div>
-        <label class="text-sm">${editing ? 'Ganti Foto (Opsional):' : 'Foto *'}</label>
-        <input type="file" id="foto-input" accept="image/*" ${editing ? '' : 'required'} class="w-full border rounded-lg px-3 py-2 mt-1 text-sm" />
-        ${editing ? `<img src="${editing.foto}" class="h-20 mt-2 rounded border"/>` : ''}
+        <label class="text-sm">${editing ? 'Ganti Foto (Opsional, Maks 5):' : 'Foto (Bisa pilih lebih dari 1, Maks 5) *'}</label>
+        <input type="file" id="foto-input" accept="image/*" multiple ${editing ? '' : 'required'} class="w-full border rounded-lg px-3 py-2 mt-1 text-sm" />
+        ${editing ? `
+          <div class="flex gap-2 mt-2 flex-wrap">
+            ${getFotoArray(editing.foto).map(f => `<img src="${f}" class="h-16 w-16 object-cover rounded border cursor-pointer" onclick="showImagePreview('${f}')"/>`).join('')}
+          </div>
+        ` : ''}
       </div>
       <button type="submit" class="w-full bg-orange-600 text-white py-2 rounded-lg font-semibold">${editing ? 'Simpan Perubahan' : 'Kirim Laporan'}</button>
     </div></form>`;
   
   openModal(editing ? 'Edit Laporan' : 'Buat Laporan', body, async (e) => {
     const f = e.target; 
-    const file = document.getElementById('foto-input').files[0];
-    if (!file && !editing) { showToast('Pilih foto terlebih dahulu!', 'warning'); return; }
+    const fileInput = document.getElementById('foto-input');
+    const files = fileInput.files;
+    
+    if (!files.length && !editing) { showToast('Pilih minimal 1 foto!', 'warning'); return; }
+    if (files.length > 5) { showToast('Maksimal 5 foto!', 'warning'); return; }
     if (!f.siswa_id.value) { showToast('Pilih siswa terlebih dahulu!', 'warning'); return; }
-    let fotoUrl = editing ? editing.foto : null;
-    if (file) {
-      const fileName = `laporan/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
-      const { error: err } = await supabaseClient.storage.from('foto_laporan').upload(fileName, file);
-      if (err) { showToast("Gagal upload foto: " + err.message, 'error'); return; }
-      const { data: { publicUrl } } = supabaseClient.storage.from('foto_laporan').getPublicUrl(fileName);
-      fotoUrl = publicUrl;
+    
+    let fotoUrls = [];
+    
+    if (files.length > 0) {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const fileName = `laporan/${Date.now()}_${i}_${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
+        const { error: err } = await supabaseClient.storage.from('foto_laporan').upload(fileName, file);
+        if (err) { showToast("Gagal upload foto: " + err.message, 'error'); return; }
+        const { data: { publicUrl } } = supabaseClient.storage.from('foto_laporan').getPublicUrl(fileName);
+        fotoUrls.push(publicUrl);
+      }
+    } else if (editing) {
+      fotoUrls = getFotoArray(editing.foto);
     }
+    
+    const fotoString = JSON.stringify(fotoUrls);
     const myTentorId = getMyTentorId() || DB.tentor[0]?.id;
-    const data = { tentor_id: editing ? editing.tentor_id : myTentorId, siswa_id: f.siswa_id.value, tanggal: f.tanggal.value, mapel: f.mapel.value, topik: f.topik.value, catatan: f.catatan.value, foto: fotoUrl };
+    
+    const data = { 
+      tentor_id: editing ? editing.tentor_id : myTentorId, 
+      siswa_id: f.siswa_id.value, 
+      tanggal: f.tanggal.value, 
+      mapel: f.mapel.value, 
+      topik: f.topik.value, 
+      catatan: f.catatan.value, 
+      foto: fotoString 
+    };
+    
     if (editing) { await supabaseClient.from('laporan').update(data).eq('id', editing.id); }
     else { await supabaseClient.from('laporan').insert([data]); }
+    
     showToast(editing ? 'Laporan diperbarui' : 'Laporan tersimpan', 'success');
     closeModal();
   });
