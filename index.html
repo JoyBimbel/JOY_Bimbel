@@ -34,6 +34,115 @@
   .animate-scale-in { animation: scaleIn 0.2s ease-out; }
   .animate-fade-in { animation: fadeIn 0.2s ease-out; }
 
+  /* ============ BACKGROUND GRADIENT (agar glass sidebar terlihat) ============ */
+  #app-page {
+    background:
+      radial-gradient(circle at 10% 5%, rgba(249, 115, 22, 0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(139, 92, 246, 0.10), transparent 45%),
+      radial-gradient(circle at 75% 85%, rgba(59, 130, 246, 0.09), transparent 45%),
+      radial-gradient(circle at 15% 85%, rgba(236, 72, 153, 0.08), transparent 45%),
+      #f8fafc;
+    background-attachment: fixed;
+    min-height: 100vh;
+    position: relative;
+  }
+
+  /* ============ SIDEBAR GLASS + FIXED + COLLAPSE ============ */
+  #sidebar {
+    background: rgba(255, 255, 255, 0.72);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Main content margin supaya tidak ketiban sidebar */
+  #main-content { transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+
+  @media (min-width: 768px) {
+    #main-content { margin-left: 16.75rem; }
+    body.sidebar-collapsed #main-content { margin-left: 5.75rem; }
+    body.sidebar-collapsed #sidebar { width: 5rem; }
+    body.sidebar-collapsed #nav { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+
+    /* Sembunyikan label teks saat collapsed */
+    body.sidebar-collapsed .sidebar-label { display: none !important; }
+    body.sidebar-collapsed .header-row { justify-content: center !important; }
+    body.sidebar-collapsed .sidebar-brand { justify-content: center !important; width: 100% !important; }
+
+    /* Nav button icon-only saat collapsed */
+    body.sidebar-collapsed #nav button {
+      justify-content: center !important;
+      gap: 0 !important;
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+    }
+    body.sidebar-collapsed #nav button i { margin: 0 !important; }
+
+    /* Logout icon-only saat collapsed */
+    body.sidebar-collapsed .nav-logout {
+      justify-content: center !important;
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+      margin-left: 0.5rem !important;
+      margin-right: 0.5rem !important;
+    }
+  }
+
+  /* ============ COLLAPSE BUTTON (floating di tepi sidebar) ============ */
+  #collapse-btn {
+    position: fixed;
+    top: 1.75rem;
+    left: calc(16rem + 0.75rem - 12px);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    align-items: center;
+    justify-content: center;
+    z-index: 45;
+    cursor: pointer;
+    color: #6b7280;
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s, color 0.2s, background 0.2s;
+  }
+  #collapse-btn:hover { background: #fff7ed; transform: scale(1.15); color: #ea580c; }
+  body.sidebar-collapsed #collapse-btn { left: calc(5rem + 0.75rem - 12px); }
+  .collapse-icon { transition: transform 0.3s ease; }
+  body.sidebar-collapsed .collapse-icon { transform: rotate(180deg); }
+
+  /* ============ MOBILE TOPBAR GLASS ============ */
+  #mobile-topbar {
+    background: rgba(255, 255, 255, 0.78);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  }
+
+  /* ============ MOBILE BACKDROP ============ */
+  #sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.35);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    z-index: 35;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  body.sidebar-mobile-open #sidebar-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Nav item hover effect */
+  #nav button { transition: all 0.2s ease; }
+  #nav button:hover:not([data-active="true"]) { transform: translateX(2px); }
+
+  /* ============ PRINT ============ */
   #print-area { display: none; }
   @media print {
     body * { visibility: hidden; }
@@ -67,30 +176,53 @@
 </div>
 
 <div id="app-page" class="hidden opacity-0 transition-opacity duration-500">
-  <div class="md:hidden bg-white border-b px-4 py-3 flex items-center justify-between sticky top-0 z-30">
-    <button onclick="toggleSidebar()"><i data-lucide="menu" class="w-6 h-6"></i></button>
+
+  <!-- Mobile topbar (glass) -->
+  <div id="mobile-topbar" class="md:hidden px-4 py-3 flex items-center justify-between sticky top-0 z-30">
+    <button onclick="toggleSidebar()" class="p-1.5 rounded-lg hover:bg-gray-100"><i data-lucide="menu" class="w-6 h-6"></i></button>
     <div class="flex items-center gap-2">
       <img id="mobile-logo" src="" class="h-7 w-7 object-contain hidden" />
       <span class="font-bold"><span class="text-orange-600">Joy</span> Bimbel</span>
     </div>
-    <button onclick="logout()" class="text-red-600 p-1"><i data-lucide="log-out" class="w-5 h-5"></i></button>
+    <button onclick="logout()" class="text-red-600 p-1.5 rounded-lg hover:bg-red-50"><i data-lucide="log-out" class="w-5 h-5"></i></button>
   </div>
 
-  <div class="flex min-h-screen">
-    <aside id="sidebar" class="fixed md:static inset-y-0 left-0 z-40 w-64 bg-white border-r p-4 flex-col hidden md:flex transform -translate-x-full md:translate-x-0 transition-transform overflow-y-auto">
-      <div class="flex items-center justify-between mb-6">
-        <div class="flex items-center gap-2">
-          <img id="sidebar-logo" src="" class="h-8 w-8 object-contain hidden" />
-          <h1 class="text-xl font-bold"><span class="text-orange-600">Joy</span> Bimbel</h1>
-        </div>
-        <button class="md:hidden" onclick="toggleSidebar()"><i data-lucide="x" class="w-5 h-5"></i></button>
+  <!-- Mobile backdrop -->
+  <div id="sidebar-backdrop" class="md:hidden" onclick="toggleSidebar()"></div>
+
+  <!-- SIDEBAR (glass, fixed, collapsible) -->
+  <aside id="sidebar" class="fixed top-3 bottom-3 left-3 z-40 w-64 flex-col hidden md:flex transform -translate-x-full md:translate-x-0 rounded-3xl overflow-hidden">
+    <!-- Header -->
+    <div class="header-row flex items-center justify-between px-4 py-4 flex-shrink-0">
+      <div class="sidebar-brand flex items-center gap-2 min-w-0">
+        <img id="sidebar-logo" src="" class="h-8 w-8 object-contain hidden flex-shrink-0" />
+        <h1 class="sidebar-label text-lg font-bold truncate"><span class="text-orange-600">Joy</span> Bimbel</h1>
       </div>
-      <div class="text-xs text-gray-500 mb-4 px-3 py-2 bg-gray-50 rounded-lg">Login: <b id="sidebar-role"></b></div>
-      <nav id="nav" class="flex-1 space-y-1 overflow-y-auto"></nav>
-      <button onclick="logout()" class="mt-4 flex items-center gap-3 px-3 py-2 rounded-lg text-red-600 hover:bg-red-50 w-full flex-shrink-0"><i data-lucide="log-out" class="w-4 h-4"></i> Logout</button>
-    </aside>
-    <main class="flex-1 p-4 md:p-8 overflow-x-auto"><div id="content"></div></main>
-  </div>
+      <button onclick="toggleSidebar()" class="md:hidden text-gray-500 hover:bg-gray-100 p-1.5 rounded-lg flex-shrink-0"><i data-lucide="x" class="w-5 h-5"></i></button>
+    </div>
+
+    <!-- Role info -->
+    <div class="sidebar-label text-xs text-gray-500 mx-3 mb-3 px-3 py-2 bg-white/60 rounded-lg flex-shrink-0 border border-white/80">Login: <b id="sidebar-role"></b></div>
+
+    <!-- Nav -->
+    <nav id="nav" class="flex-1 space-y-1 overflow-y-auto overflow-x-hidden px-3"></nav>
+
+    <!-- Logout -->
+    <button onclick="logout()" class="nav-logout mx-3 mt-3 mb-3 flex items-center gap-3 px-3 py-2.5 rounded-xl text-red-600 hover:bg-red-50/80 flex-shrink-0 transition">
+      <i data-lucide="log-out" class="w-4 h-4 flex-shrink-0"></i>
+      <span class="sidebar-label text-sm font-medium">Logout</span>
+    </button>
+  </aside>
+
+  <!-- Collapse button (desktop only) -->
+  <button id="collapse-btn" onclick="toggleSidebarCollapse()" class="hidden md:flex" title="Minimize / Maximize sidebar">
+    <i data-lucide="chevron-left" class="collapse-icon w-3.5 h-3.5"></i>
+  </button>
+
+  <!-- Main content -->
+  <main id="main-content" class="p-4 md:p-8">
+    <div id="content"></div>
+  </main>
 </div>
 
 <div id="modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -347,10 +479,16 @@ function renderNav() {
   const menus = s && s.role === 'admin' ? adminMenus : tentorMenus;
   const nav = document.getElementById('nav');
   if (nav) {
-    nav.innerHTML = menus.map(m => `
-      <button onclick="navigate('${m.id}')" class="flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition ${currentPage===m.id ? 'bg-orange-50 text-orange-700 font-semibold' : 'hover:bg-gray-100 text-gray-700'}">
-        <i data-lucide="${m.icon}" class="w-4 h-4 flex-shrink-0"></i> <span class="truncate">${m.label}</span>
-      </button>`).join('');
+    nav.innerHTML = menus.map(m => {
+      const active = currentPage === m.id;
+      const cls = active
+        ? 'bg-orange-500 text-white font-semibold shadow-lg shadow-orange-500/30'
+        : 'hover:bg-white/70 text-gray-700';
+      return `<button onclick="navigate('${m.id}')" title="${m.label}" data-active="${active}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl w-full text-left transition ${cls}">
+        <i data-lucide="${m.icon}" class="w-5 h-5 flex-shrink-0"></i>
+        <span class="sidebar-label truncate">${m.label}</span>
+      </button>`;
+    }).join('');
   }
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -361,9 +499,36 @@ function navigate(page) {
   filterInvoiceStatus = 'all'; filterInvoiceJenis = 'all'; filterLaporanTentor = 'all';
   expandedJadwal = {};
   renderNav(); renderPage();
-  if (window.innerWidth < 768) { const sb = document.getElementById('sidebar'); if (sb) sb.classList.add('hidden','-translate-x-full'); }
+  if (window.innerWidth < 768) closeMobileSidebar();
 }
-function toggleSidebar() { const s = document.getElementById('sidebar'); if (s) { s.classList.toggle('hidden'); s.classList.toggle('-translate-x-full'); } }
+
+function toggleSidebar() {
+  const s = document.getElementById('sidebar');
+  if (!s) return;
+  const isOpen = !s.classList.contains('hidden');
+  if (isOpen) {
+    closeMobileSidebar();
+  } else {
+    s.classList.remove('hidden', '-translate-x-full');
+    s.classList.add('flex');
+    document.body.classList.add('sidebar-mobile-open');
+  }
+  setTimeout(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); }, 50);
+}
+
+function closeMobileSidebar() {
+  const s = document.getElementById('sidebar');
+  if (!s) return;
+  s.classList.add('hidden', '-translate-x-full');
+  s.classList.remove('flex');
+  document.body.classList.remove('sidebar-mobile-open');
+}
+
+function toggleSidebarCollapse() {
+  document.body.classList.toggle('sidebar-collapsed');
+  localStorage.setItem('sidebarCollapsed', document.body.classList.contains('sidebar-collapsed') ? '1' : '0');
+  setTimeout(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); }, 50);
+}
 
 let modalSubmit = null;
 function openModal(title, body, onSubmit) {
@@ -384,7 +549,6 @@ function renderPage() {
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
-// Helper: pencarian tanpa kehilangan fokus
 function doSearch(key, value, inputId) {
   if (key === 'siswa') searchSiswa = value;
   else if (key === 'tentor') searchTentor = value;
@@ -394,10 +558,7 @@ function doSearch(key, value, inputId) {
   const el = document.getElementById(inputId);
   if (el) {
     el.focus();
-    try {
-      const len = el.value.length;
-      el.setSelectionRange(len, len);
-    } catch(e) {}
+    try { const len = el.value.length; el.setSelectionRange(len, len); } catch(e) {}
   }
 }
 
@@ -838,7 +999,6 @@ function renderLaporanTentor() {
   </div>`;
 }
 
-// ===== DOWNLOAD WORD via HTML-based .doc (tanpa library) =====
 async function downloadLaporanAsWord(laporanId) {
   const l = DB.laporan.find(x => x.id === laporanId);
   if (!l) { showToast('Laporan tidak ditemukan', 'error'); return; }
@@ -1771,6 +1931,9 @@ async function deleteRecord(table, id, name = 'data ini') {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
+  if (localStorage.getItem('sidebarCollapsed') === '1') {
+    document.body.classList.add('sidebar-collapsed');
+  }
   if (typeof lucide !== 'undefined') lucide.createIcons();
   await loadLogo();
   checkSession();
