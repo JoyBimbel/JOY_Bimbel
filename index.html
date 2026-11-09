@@ -34,7 +34,14 @@
   .animate-scale-in { animation: scaleIn 0.2s ease-out; }
   .animate-fade-in { animation: fadeIn 0.2s ease-out; }
 
-  /* ============ BACKGROUND GRADIENT (agar glass sidebar terlihat) ============ */
+  /* ===== PAGE TRANSITION ===== */
+  @keyframes pageEnter {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .page-enter { animation: pageEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
+
+  /* ===== BACKGROUND GRADIENT ===== */
   #app-page {
     background:
       radial-gradient(circle at 10% 5%, rgba(249, 115, 22, 0.14), transparent 45%),
@@ -47,7 +54,7 @@
     position: relative;
   }
 
-  /* ============ SIDEBAR GLASS + FIXED + COLLAPSE ============ */
+  /* ===== SIDEBAR GLASS + FIXED + COLLAPSE ===== */
   #sidebar {
     background: rgba(255, 255, 255, 0.72);
     -webkit-backdrop-filter: blur(24px) saturate(180%);
@@ -57,7 +64,6 @@
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* Main content margin supaya tidak ketiban sidebar */
   #main-content { transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
 
   @media (min-width: 768px) {
@@ -66,21 +72,19 @@
     body.sidebar-collapsed #sidebar { width: 5rem; }
     body.sidebar-collapsed #nav { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
 
-    /* Sembunyikan label teks saat collapsed */
     body.sidebar-collapsed .sidebar-label { display: none !important; }
     body.sidebar-collapsed .header-row { justify-content: center !important; }
     body.sidebar-collapsed .sidebar-brand { justify-content: center !important; width: 100% !important; }
 
-    /* Nav button icon-only saat collapsed */
     body.sidebar-collapsed #nav button {
       justify-content: center !important;
       gap: 0 !important;
       padding-left: 0 !important;
       padding-right: 0 !important;
+      position: relative !important;
     }
     body.sidebar-collapsed #nav button i { margin: 0 !important; }
 
-    /* Logout icon-only saat collapsed */
     body.sidebar-collapsed .nav-logout {
       justify-content: center !important;
       padding-left: 0 !important;
@@ -90,7 +94,7 @@
     }
   }
 
-  /* ============ COLLAPSE BUTTON (floating di tepi sidebar) ============ */
+  /* Collapse button */
   #collapse-btn {
     position: fixed;
     top: 1.75rem;
@@ -113,7 +117,15 @@
   .collapse-icon { transition: transform 0.3s ease; }
   body.sidebar-collapsed .collapse-icon { transform: rotate(180deg); }
 
-  /* ============ MOBILE TOPBAR GLASS ============ */
+  /* ===== TOPBAR (desktop) GLASS ===== */
+  #topbar-desktop {
+    background: rgba(248, 250, 252, 0.72);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  }
+
+  /* ===== MOBILE TOPBAR GLASS ===== */
   #mobile-topbar {
     background: rgba(255, 255, 255, 0.78);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
@@ -121,7 +133,7 @@
     border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   }
 
-  /* ============ MOBILE BACKDROP ============ */
+  /* ===== MOBILE BACKDROP ===== */
   #sidebar-backdrop {
     position: fixed;
     inset: 0;
@@ -133,16 +145,43 @@
     pointer-events: none;
     transition: opacity 0.3s ease;
   }
-  body.sidebar-mobile-open #sidebar-backdrop {
-    opacity: 1;
-    pointer-events: auto;
-  }
+  body.sidebar-mobile-open #sidebar-backdrop { opacity: 1; pointer-events: auto; }
 
-  /* Nav item hover effect */
+  /* ===== NAV ===== */
   #nav button { transition: all 0.2s ease; }
   #nav button:hover:not([data-active="true"]) { transform: translateX(2px); }
 
-  /* ============ PRINT ============ */
+  /* ===== BADGE NOTIFIKASI ===== */
+  .nav-badge {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+    margin-left: auto;
+    line-height: 1;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+    flex-shrink: 0;
+  }
+  body.sidebar-collapsed .nav-badge {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    min-width: 8px;
+    height: 8px;
+    padding: 0;
+    font-size: 0;
+    margin-left: 0;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9);
+  }
+
+  /* ===== PRINT ===== */
   #print-area { display: none; }
   @media print {
     body * { visibility: hidden; }
@@ -177,22 +216,22 @@
 
 <div id="app-page" class="hidden opacity-0 transition-opacity duration-500">
 
-  <!-- Mobile topbar (glass) -->
+  <!-- Mobile topbar -->
   <div id="mobile-topbar" class="md:hidden px-4 py-3 flex items-center justify-between sticky top-0 z-30">
     <button onclick="toggleSidebar()" class="p-1.5 rounded-lg hover:bg-gray-100"><i data-lucide="menu" class="w-6 h-6"></i></button>
     <div class="flex items-center gap-2">
       <img id="mobile-logo" src="" class="h-7 w-7 object-contain hidden" />
       <span class="font-bold"><span class="text-orange-600">Joy</span> Bimbel</span>
     </div>
-    <button onclick="logout()" class="text-red-600 p-1.5 rounded-lg hover:bg-red-50"><i data-lucide="log-out" class="w-5 h-5"></i></button>
+    <button onclick="toggleProfileMenu(event)" class="w-9 h-9 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 text-white flex items-center justify-center font-bold text-xs shadow-md hover:scale-105 transition">
+      <span id="profile-avatar-mobile">?</span>
+    </button>
   </div>
 
-  <!-- Mobile backdrop -->
   <div id="sidebar-backdrop" class="md:hidden" onclick="toggleSidebar()"></div>
 
-  <!-- SIDEBAR (glass, fixed, collapsible) -->
+  <!-- SIDEBAR -->
   <aside id="sidebar" class="fixed top-3 bottom-3 left-3 z-40 w-64 flex-col hidden md:flex transform -translate-x-full md:translate-x-0 rounded-3xl overflow-hidden">
-    <!-- Header -->
     <div class="header-row flex items-center justify-between px-4 py-4 flex-shrink-0">
       <div class="sidebar-brand flex items-center gap-2 min-w-0">
         <img id="sidebar-logo" src="" class="h-8 w-8 object-contain hidden flex-shrink-0" />
@@ -201,28 +240,57 @@
       <button onclick="toggleSidebar()" class="md:hidden text-gray-500 hover:bg-gray-100 p-1.5 rounded-lg flex-shrink-0"><i data-lucide="x" class="w-5 h-5"></i></button>
     </div>
 
-    <!-- Role info -->
     <div class="sidebar-label text-xs text-gray-500 mx-3 mb-3 px-3 py-2 bg-white/60 rounded-lg flex-shrink-0 border border-white/80">Login: <b id="sidebar-role"></b></div>
 
-    <!-- Nav -->
     <nav id="nav" class="flex-1 space-y-1 overflow-y-auto overflow-x-hidden px-3"></nav>
 
-    <!-- Logout -->
     <button onclick="logout()" class="nav-logout mx-3 mt-3 mb-3 flex items-center gap-3 px-3 py-2.5 rounded-xl text-red-600 hover:bg-red-50/80 flex-shrink-0 transition">
       <i data-lucide="log-out" class="w-4 h-4 flex-shrink-0"></i>
       <span class="sidebar-label text-sm font-medium">Logout</span>
     </button>
   </aside>
 
-  <!-- Collapse button (desktop only) -->
   <button id="collapse-btn" onclick="toggleSidebarCollapse()" class="hidden md:flex" title="Minimize / Maximize sidebar">
     <i data-lucide="chevron-left" class="collapse-icon w-3.5 h-3.5"></i>
   </button>
 
-  <!-- Main content -->
-  <main id="main-content" class="p-4 md:p-8">
-    <div id="content"></div>
+  <!-- MAIN -->
+  <main id="main-content">
+    <!-- Desktop topbar with avatar -->
+    <div id="topbar-desktop" class="hidden md:flex sticky top-0 z-20 justify-end px-4 md:px-8 py-3">
+      <button onclick="toggleProfileMenu(event)" class="flex items-center gap-3 pl-1 pr-3 py-1 rounded-full bg-white/80 hover:bg-white shadow-sm border border-gray-100 hover:shadow-md transition">
+        <div id="profile-avatar-desktop" class="w-9 h-9 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 text-white flex items-center justify-center font-bold text-xs shadow-sm">?</div>
+        <div class="text-left hidden lg:block">
+          <div id="profile-name-desktop" class="text-sm font-semibold leading-tight">-</div>
+          <div id="profile-role-desktop" class="text-[11px] text-gray-500 leading-tight">-</div>
+        </div>
+        <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 hidden lg:block"></i>
+      </button>
+    </div>
+
+    <div class="p-4 md:p-8">
+      <div id="content"></div>
+    </div>
   </main>
+
+  <!-- Profile menu (shared between mobile & desktop) -->
+  <div id="profile-menu" class="hidden fixed top-[4.25rem] right-3 md:right-8 w-64 max-w-[calc(100vw-1.5rem)] bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden animate-scale-in">
+    <div class="p-4 border-b border-gray-100 flex items-center gap-3">
+      <div id="profile-menu-avatar" class="w-12 h-12 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 text-white flex items-center justify-center font-bold text-lg flex-shrink-0 shadow-md">?</div>
+      <div class="min-w-0 flex-1">
+        <div id="profile-menu-name" class="font-bold text-sm truncate">-</div>
+        <div id="profile-menu-email" class="text-xs text-gray-500 truncate">-</div>
+      </div>
+    </div>
+    <div class="px-4 py-2.5 border-b border-gray-100">
+      <span id="profile-menu-role" class="px-2 py-1 text-xs rounded font-semibold bg-orange-100 text-orange-700">-</span>
+    </div>
+    <button onclick="logout()" class="w-full flex items-center gap-2 px-4 py-3 text-red-600 hover:bg-red-50 font-medium transition">
+      <i data-lucide="log-out" class="w-4 h-4"></i>
+      <span class="text-sm">Logout</span>
+    </button>
+  </div>
+
 </div>
 
 <div id="modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -288,6 +356,76 @@ function getFotoArray(fotoStr) {
     try { return JSON.parse(fotoStr); } catch(e) { return [fotoStr]; }
   }
   return [fotoStr];
+}
+
+// ===== AVATAR HELPERS =====
+function getInitials(name) {
+  if (!name) return '?';
+  const words = String(name).trim().split(/\s+/);
+  if (words.length === 0) return '?';
+  if (words.length === 1) return words[0].substring(0, 2).toUpperCase();
+  return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+}
+
+function updateAvatarUI() {
+  if (!DB.profile) return;
+  const initials = getInitials(DB.profile.nama);
+  const name = DB.profile.nama || '-';
+  const email = DB.profile.email || '-';
+  const role = DB.profile.role || '';
+
+  ['profile-avatar-mobile', 'profile-avatar-desktop'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = initials;
+  });
+  const nameD = document.getElementById('profile-name-desktop');
+  if (nameD) nameD.textContent = name;
+  const roleD = document.getElementById('profile-role-desktop');
+  if (roleD) roleD.textContent = role.charAt(0).toUpperCase() + role.slice(1);
+
+  const menuAvatar = document.getElementById('profile-menu-avatar');
+  if (menuAvatar) menuAvatar.textContent = initials;
+  const menuName = document.getElementById('profile-menu-name');
+  if (menuName) menuName.textContent = name;
+  const menuEmail = document.getElementById('profile-menu-email');
+  if (menuEmail) menuEmail.textContent = email;
+  const menuRole = document.getElementById('profile-menu-role');
+  if (menuRole) {
+    menuRole.textContent = role.charAt(0).toUpperCase() + role.slice(1);
+    menuRole.className = `px-2 py-1 text-xs rounded font-semibold ${role === 'admin' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`;
+  }
+}
+
+function toggleProfileMenu(e) {
+  if (e) e.stopPropagation();
+  const menu = document.getElementById('profile-menu');
+  if (menu) menu.classList.toggle('hidden');
+}
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('profile-menu');
+  if (!menu || menu.classList.contains('hidden')) return;
+  const btnD = document.getElementById('profile-avatar-btn-desktop');
+  const btnM = document.querySelector('#mobile-topbar button[onclick*="toggleProfileMenu"]');
+  if (!menu.contains(e.target) && !(btnM && btnM.contains(e.target))) {
+    const clickedAvatar = e.target.closest && (e.target.closest('#profile-avatar-btn-desktop') || e.target.closest('[onclick*="toggleProfileMenu"]'));
+    if (!clickedAvatar) menu.classList.add('hidden');
+  }
+});
+
+// ===== BADGE HELPERS =====
+function getBadgeCount(menuId) {
+  const role = DB.profile?.role || '';
+  if (menuId === 'invoice' && role === 'admin') {
+    return DB.invoice.filter(i => i.jenis === 'siswa' && i.status === 'belum_bayar').length;
+  }
+  if (menuId === 'jadwal') {
+    const tgl = todayISO();
+    const myId = getMyTentorId();
+    let list = DB.jadwal.filter(j => j.tanggal === tgl);
+    if (myId) list = list.filter(j => j.tentor_id === myId);
+    return list.length;
+  }
+  return 0;
 }
 
 function showToast(message, type = 'success') {
@@ -437,6 +575,8 @@ async function loadAllData(user) {
 }
 
 function logout() {
+  const menu = document.getElementById('profile-menu');
+  if (menu) menu.classList.add('hidden');
   showConfirm('Logout?', 'Anda akan keluar dari sistem Joy Bimbel.', async () => {
     try {
       if (realtimeChannel) await supabaseClient.removeChannel(realtimeChannel);
@@ -455,6 +595,7 @@ function bootApp() {
     const appPage = document.getElementById('app-page');
     if (appPage) { appPage.classList.remove('hidden'); setTimeout(() => appPage.classList.remove('opacity-0'), 50); }
     applyLogo();
+    updateAvatarUI();
     const sidebarRole = document.getElementById('sidebar-role');
     if (sidebarRole && DB.profile) sidebarRole.textContent = DB.profile.role.toUpperCase() + ' - ' + DB.profile.nama;
     renderNav(); renderPage();
@@ -484,9 +625,14 @@ function renderNav() {
       const cls = active
         ? 'bg-orange-500 text-white font-semibold shadow-lg shadow-orange-500/30'
         : 'hover:bg-white/70 text-gray-700';
-      return `<button onclick="navigate('${m.id}')" title="${m.label}" data-active="${active}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl w-full text-left transition ${cls}">
+      const badgeCount = getBadgeCount(m.id);
+      const badgeHtml = badgeCount > 0
+        ? `<span class="nav-badge">${badgeCount > 99 ? '99+' : badgeCount}</span>`
+        : '';
+      return `<button onclick="navigate('${m.id}')" title="${m.label}" data-active="${active}" class="relative flex items-center gap-3 px-3 py-2.5 rounded-xl w-full text-left transition ${cls}">
         <i data-lucide="${m.icon}" class="w-5 h-5 flex-shrink-0"></i>
         <span class="sidebar-label truncate">${m.label}</span>
+        ${badgeHtml}
       </button>`;
     }).join('');
   }
@@ -506,9 +652,8 @@ function toggleSidebar() {
   const s = document.getElementById('sidebar');
   if (!s) return;
   const isOpen = !s.classList.contains('hidden');
-  if (isOpen) {
-    closeMobileSidebar();
-  } else {
+  if (isOpen) { closeMobileSidebar(); }
+  else {
     s.classList.remove('hidden', '-translate-x-full');
     s.classList.add('flex');
     document.body.classList.add('sidebar-mobile-open');
@@ -541,12 +686,17 @@ function openModal(title, body, onSubmit) {
 function closeModal() { const m = document.getElementById('modal'); if (m) m.classList.add('hidden'); modalSubmit = null; }
 document.getElementById('modal-body').addEventListener('submit', (e) => { e.preventDefault(); if (modalSubmit) modalSubmit(e); });
 
-function renderPage() {
+function renderPage(silent = false) {
   const content = document.getElementById('content');
   if (!content) return;
   const pages = { dashboard: renderDashboard, siswa: () => renderSiswa(), tentor: () => renderTentor(), jadwal: () => renderJadwal(), invoice: () => renderInvoice(), keuangan: () => renderLaporanKeuangan(), akun: () => renderAkun(), pengaturan: () => renderPengaturan(), backup: () => renderBackup(), laporan_tentor: () => renderLaporanTentor() };
   content.innerHTML = (pages[currentPage] || renderDashboard)();
   if (typeof lucide !== 'undefined') lucide.createIcons();
+  if (!silent) {
+    content.classList.remove('page-enter');
+    void content.offsetWidth;
+    content.classList.add('page-enter');
+  }
 }
 
 function doSearch(key, value, inputId) {
@@ -554,7 +704,7 @@ function doSearch(key, value, inputId) {
   else if (key === 'tentor') searchTentor = value;
   else if (key === 'invoice') searchInvoice = value;
   else if (key === 'laporan') searchLaporan = value;
-  renderPage();
+  renderPage(true);
   const el = document.getElementById(inputId);
   if (el) {
     el.focus();
@@ -1343,7 +1493,7 @@ function onRecipientChange(untukId) {
       const siswa = DB.siswa.find(s => s.id === j.siswa_id);
       if (!siswa) return;
       const laporan = DB.laporan.find(l => l.tanggal === j.tanggal && l.siswa_id === j.siswa_id && l.tentor_id === untukId);
-      const materi = laporan && laporan.topik ? laporan.topik : (siswa.mapel || tentor.mapel || 'Les Privat');
+      const materi = laporan && l.topik ? l.topik : (siswa.mapel || tentor.mapel || 'Les Privat');
       itemsToInsert.push({ tanggal: j.tanggal, siswa_id: j.siswa_id, deskripsi: materi, qty: 1, harga: tentor.tarif });
       addedCount++;
     });
@@ -1351,7 +1501,7 @@ function onRecipientChange(untukId) {
       const siswa = DB.siswa.find(s => s.id === j.siswa_id);
       if (!siswa) return;
       const laporan = DB.laporan.find(l => l.siswa_id === j.siswa_id && l.tentor_id === untukId);
-      const materi = laporan && laporan.topik ? laporan.topik : (siswa.mapel || tentor.mapel || 'Les Privat');
+      const materi = laporan && l.topik ? laporan.topik : (siswa.mapel || tentor.mapel || 'Les Privat');
       itemsToInsert.push({ tanggal: today, siswa_id: j.siswa_id, deskripsi: materi, qty: 1, harga: tentor.tarif });
       addedCount++;
     });
