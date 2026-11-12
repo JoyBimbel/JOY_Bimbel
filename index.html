@@ -5,14 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Joy Bimbel</title>
 <link rel="icon" id="favicon" href="" />
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
   const supabaseUrl = 'https://jsgtihamclghgurhvwwi.supabase.co';
   const supabaseKey = 'sb_publishable_K3U2e1vIcuyE5CZLybWeVA_XthgH50z';
   const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 </script>
-
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -24,7 +22,6 @@
   .text-orange-700 { color: var(--theme-700) !important; } .text-orange-800 { color: var(--theme-800) !important; }
   .border-orange-600 { border-color: var(--theme-600) !important; } .focus\:ring-orange-500:focus { --tw-ring-color: var(--theme-500) !important; }
   .border-orange-500 { border-color: var(--theme-500) !important; }
-
   .spinner { border: 4px solid rgba(255, 255, 255, 0.3); border-top: 4px solid white; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
   @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   @keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
@@ -33,16 +30,10 @@
   .animate-slide-in { animation: slideIn 0.3s ease-out; }
   .animate-scale-in { animation: scaleIn 0.2s ease-out; }
   .animate-fade-in { animation: fadeIn 0.2s ease-out; }
-
-  @keyframes pageEnter {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
+  @keyframes pageEnter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
   .page-enter { animation: pageEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
-
   #app-page {
-    background:
-      radial-gradient(circle at 10% 5%, rgba(249, 115, 22, 0.14), transparent 45%),
+    background: radial-gradient(circle at 10% 5%, rgba(249, 115, 22, 0.14), transparent 45%),
       radial-gradient(circle at 90% 10%, rgba(139, 92, 246, 0.10), transparent 45%),
       radial-gradient(circle at 75% 85%, rgba(59, 130, 246, 0.09), transparent 45%),
       radial-gradient(circle at 15% 85%, rgba(236, 72, 153, 0.08), transparent 45%),
@@ -51,7 +42,6 @@
     min-height: 100vh;
     position: relative;
   }
-
   #sidebar {
     background: rgba(255, 255, 255, 0.72);
     -webkit-backdrop-filter: blur(24px) saturate(180%);
@@ -60,110 +50,37 @@
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
-
   #main-content { transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-
   @media (min-width: 768px) {
     #main-content { margin-left: 16.75rem; }
     body.sidebar-collapsed #main-content { margin-left: 5.75rem; }
     body.sidebar-collapsed #sidebar { width: 5rem; }
     body.sidebar-collapsed #nav { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
-
     body.sidebar-collapsed .sidebar-label { display: none !important; }
     body.sidebar-collapsed .header-row { justify-content: center !important; }
     body.sidebar-collapsed .sidebar-brand { justify-content: center !important; width: 100% !important; }
-
-    body.sidebar-collapsed #nav button {
-      justify-content: center !important;
-      gap: 0 !important;
-      padding-left: 0 !important;
-      padding-right: 0 !important;
-      position: relative !important;
-    }
+    body.sidebar-collapsed #nav button { justify-content: center !important; gap: 0 !important; padding-left: 0 !important; padding-right: 0 !important; position: relative !important; }
     body.sidebar-collapsed #nav button i { margin: 0 !important; }
   }
-
   #collapse-btn {
-    position: fixed;
-    top: 1.75rem;
-    left: calc(16rem + 0.75rem - 12px);
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: #ffffff;
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-    align-items: center;
-    justify-content: center;
-    z-index: 45;
-    cursor: pointer;
-    color: #6b7280;
+    position: fixed; top: 1.75rem; left: calc(16rem + 0.75rem - 12px);
+    width: 24px; height: 24px; border-radius: 50%; background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.08); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    align-items: center; justify-content: center; z-index: 45; cursor: pointer; color: #6b7280;
     transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s, color 0.2s, background 0.2s;
   }
   #collapse-btn:hover { background: #fff7ed; transform: scale(1.15); color: #ea580c; }
   body.sidebar-collapsed #collapse-btn { left: calc(5rem + 0.75rem - 12px); }
   .collapse-icon { transition: transform 0.3s ease; }
   body.sidebar-collapsed .collapse-icon { transform: rotate(180deg); }
-
-  #topbar-desktop {
-    background: rgba(248, 250, 252, 0.72);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    backdrop-filter: blur(20px) saturate(180%);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
-  }
-
-  #mobile-topbar {
-    background: rgba(255, 255, 255, 0.78);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    backdrop-filter: blur(20px) saturate(180%);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  }
-
-  #sidebar-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(15, 23, 42, 0.35);
-    -webkit-backdrop-filter: blur(6px);
-    backdrop-filter: blur(6px);
-    z-index: 35;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s ease;
-  }
+  #topbar-desktop { background: rgba(248, 250, 252, 0.72); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%); border-bottom: 1px solid rgba(0, 0, 0, 0.04); }
+  #mobile-topbar { background: rgba(255, 255, 255, 0.78); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%); border-bottom: 1px solid rgba(0, 0, 0, 0.06); }
+  #sidebar-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.35); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); z-index: 35; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
   body.sidebar-mobile-open #sidebar-backdrop { opacity: 1; pointer-events: auto; }
-
   #nav button { transition: all 0.2s ease; }
   #nav button:hover:not([data-active="true"]) { transform: translateX(2px); }
-
-  .nav-badge {
-    background: linear-gradient(135deg, #ef4444, #dc2626);
-    color: #fff;
-    font-size: 10px;
-    font-weight: 700;
-    min-width: 18px;
-    height: 18px;
-    border-radius: 999px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 5px;
-    margin-left: auto;
-    line-height: 1;
-    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
-    flex-shrink: 0;
-  }
-  body.sidebar-collapsed .nav-badge {
-    position: absolute;
-    top: 5px;
-    right: 5px;
-    min-width: 8px;
-    height: 8px;
-    padding: 0;
-    font-size: 0;
-    margin-left: 0;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9);
-  }
-
+  .nav-badge { background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; font-size: 10px; font-weight: 700; min-width: 18px; height: 18px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; margin-left: auto; line-height: 1; box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4); flex-shrink: 0; }
+  body.sidebar-collapsed .nav-badge { position: absolute; top: 5px; right: 5px; min-width: 8px; height: 8px; padding: 0; font-size: 0; margin-left: 0; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9); }
   #print-area { display: none; }
   @media print {
     body * { visibility: hidden; }
@@ -184,9 +101,7 @@
     <p class="text-center text-gray-500 mb-6 text-sm">Silakan login untuk melanjutkan</p>
     <input name="email" type="email" required placeholder="Email" class="w-full border rounded-lg px-4 py-3 mb-3 focus:outline-none focus:ring-2 focus:ring-orange-500" />
     <input name="password" type="password" required placeholder="Password" class="w-full border rounded-lg px-4 py-3 mb-4 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-    <button type="submit" id="btn-login" class="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-lg font-semibold flex justify-center items-center gap-2">
-      <span id="btn-text">Masuk</span>
-    </button>
+    <button type="submit" id="btn-login" class="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-lg font-semibold flex justify-center items-center gap-2"><span id="btn-text">Masuk</span></button>
     <p id="login-error" class="text-red-500 text-sm text-center mt-4 hidden">Email atau password salah!</p>
   </form>
 </div>
@@ -204,9 +119,7 @@
       <img id="mobile-logo" src="" class="h-7 w-7 object-contain hidden" />
       <span class="font-bold"><span class="text-orange-600">Joy</span> Bimbel</span>
     </div>
-    <button onclick="toggleProfileMenu(event)" class="w-9 h-9 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 text-white flex items-center justify-center font-bold text-xs shadow-md hover:scale-105 transition">
-      <span id="profile-avatar-mobile">?</span>
-    </button>
+    <button onclick="toggleProfileMenu(event)" class="w-9 h-9 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 text-white flex items-center justify-center font-bold text-xs shadow-md hover:scale-105 transition"><span id="profile-avatar-mobile">?</span></button>
   </div>
 
   <div id="sidebar-backdrop" class="md:hidden" onclick="toggleSidebar()"></div>
@@ -219,9 +132,7 @@
       </div>
       <button onclick="toggleSidebar()" class="md:hidden text-gray-500 hover:bg-gray-100 p-1.5 rounded-lg flex-shrink-0"><i data-lucide="x" class="w-5 h-5"></i></button>
     </div>
-
     <div class="sidebar-label text-xs text-gray-500 mx-3 mb-3 px-3 py-2 bg-white/60 rounded-lg flex-shrink-0 border border-white/80">Login: <b id="sidebar-role"></b></div>
-
     <nav id="nav" class="flex-1 space-y-1 overflow-y-auto overflow-x-hidden px-3"></nav>
   </aside>
 
@@ -240,10 +151,7 @@
         <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 hidden lg:block"></i>
       </button>
     </div>
-
-    <div class="p-4 md:p-8">
-      <div id="content"></div>
-    </div>
+    <div class="p-4 md:p-8"><div id="content"></div></div>
   </main>
 
   <div id="profile-menu" class="hidden fixed top-[4.25rem] right-3 md:right-8 w-64 max-w-[calc(100vw-1.5rem)] bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden animate-scale-in">
@@ -258,8 +166,7 @@
       <span id="profile-menu-role" class="px-2 py-1 text-xs rounded font-semibold bg-orange-100 text-orange-700">-</span>
     </div>
     <button onclick="logout()" class="w-full flex items-center gap-2 px-4 py-3 text-red-600 hover:bg-red-50 font-medium transition">
-      <i data-lucide="log-out" class="w-4 h-4"></i>
-      <span class="text-sm">Logout</span>
+      <i data-lucide="log-out" class="w-4 h-4"></i><span class="text-sm">Logout</span>
     </button>
   </div>
 
@@ -304,7 +211,9 @@ let searchLaporan = '';
 let filterLaporanTentor = 'all';
 let expandedJadwal = {};
 let keuanganChartType = 'bar';
-let keuanganPeriod = '6';
+let keuanganMode = '6';
+let keuanganBulan = new Date().getMonth() + 1;
+let keuanganTahun = new Date().getFullYear();
 let keuanganChartInstance = null;
 
 function escapeHtml(s) { return String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -347,22 +256,15 @@ function updateAvatarUI() {
   const name = DB.profile.nama || '-';
   const email = DB.profile.email || '-';
   const role = DB.profile.role || '';
-
   ['profile-avatar-mobile', 'profile-avatar-desktop'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.textContent = initials;
   });
-  const nameD = document.getElementById('profile-name-desktop');
-  if (nameD) nameD.textContent = name;
-  const roleD = document.getElementById('profile-role-desktop');
-  if (roleD) roleD.textContent = role.charAt(0).toUpperCase() + role.slice(1);
-
-  const menuAvatar = document.getElementById('profile-menu-avatar');
-  if (menuAvatar) menuAvatar.textContent = initials;
-  const menuName = document.getElementById('profile-menu-name');
-  if (menuName) menuName.textContent = name;
-  const menuEmail = document.getElementById('profile-menu-email');
-  if (menuEmail) menuEmail.textContent = email;
+  const nameD = document.getElementById('profile-name-desktop'); if (nameD) nameD.textContent = name;
+  const roleD = document.getElementById('profile-role-desktop'); if (roleD) roleD.textContent = role.charAt(0).toUpperCase() + role.slice(1);
+  const menuAvatar = document.getElementById('profile-menu-avatar'); if (menuAvatar) menuAvatar.textContent = initials;
+  const menuName = document.getElementById('profile-menu-name'); if (menuName) menuName.textContent = name;
+  const menuEmail = document.getElementById('profile-menu-email'); if (menuEmail) menuEmail.textContent = email;
   const menuRole = document.getElementById('profile-menu-role');
   if (menuRole) {
     menuRole.textContent = role.charAt(0).toUpperCase() + role.slice(1);
@@ -495,11 +397,9 @@ async function loadAllData(user) {
     document.getElementById('login-page').classList.add('hidden');
     const loadingPage = document.getElementById('loading-page');
     loadingPage.classList.remove('hidden'); setTimeout(() => loadingPage.classList.remove('opacity-0'), 50);
-
     const { data: profile, error: profErr } = await supabaseClient.from('profiles').select('*').eq('id', user.id).single();
     if (profErr || !profile) throw new Error("Profil Anda belum terdaftar.");
     DB.profile = profile;
-
     const [resSiswa, resTentor, resJadwal, resInvoice, resLaporan, resUsers, resSettings] = await Promise.all([
       supabaseClient.from('siswa').select('*').order('nama'),
       supabaseClient.from('tentor').select('*').order('nama'),
@@ -509,12 +409,10 @@ async function loadAllData(user) {
       supabaseClient.from('profiles').select('*').order('nama'),
       supabaseClient.from('settings').select('*')
     ]);
-
     DB.siswa = resSiswa.data || []; DB.tentor = resTentor.data || []; DB.jadwal = resJadwal.data || [];
     DB.invoice = resInvoice.data || []; DB.laporan = resLaporan.data || [];
     DB.users = resUsers.data || [];
     if (resSettings.data) { resSettings.data.forEach(s => DB.settings[s.key] = s.value); if (DB.settings.logo_url) LOGO_URL = DB.settings.logo_url; }
-
     if (profile.role === 'tentor') {
       const myTentorId = profile.tentor_id || DB.tentor.find(t => t.email === profile.email)?.id;
       if (myTentorId) {
@@ -530,7 +428,6 @@ async function loadAllData(user) {
         DB.siswa = []; DB.jadwal = []; DB.laporan = []; DB.invoice = []; DB.users = [];
       }
     }
-
     bootApp();
     if (realtimeChannel) await supabaseClient.removeChannel(realtimeChannel);
     realtimeChannel = supabaseClient.channel('custom-all-channel')
@@ -594,13 +491,9 @@ function renderNav() {
   if (nav) {
     nav.innerHTML = menus.map(m => {
       const active = currentPage === m.id;
-      const cls = active
-        ? 'bg-orange-500 text-white font-semibold shadow-lg shadow-orange-500/30'
-        : 'hover:bg-white/70 text-gray-700';
+      const cls = active ? 'bg-orange-500 text-white font-semibold shadow-lg shadow-orange-500/30' : 'hover:bg-white/70 text-gray-700';
       const badgeCount = getBadgeCount(m.id);
-      const badgeHtml = badgeCount > 0
-        ? `<span class="nav-badge">${badgeCount > 99 ? '99+' : badgeCount}</span>`
-        : '';
+      const badgeHtml = badgeCount > 0 ? `<span class="nav-badge">${badgeCount > 99 ? '99+' : badgeCount}</span>` : '';
       return `<button onclick="navigate('${m.id}')" title="${m.label}" data-active="${active}" class="relative flex items-center gap-3 px-3 py-2.5 rounded-xl w-full text-left transition ${cls}">
         <i data-lucide="${m.icon}" class="w-5 h-5 flex-shrink-0"></i>
         <span class="sidebar-label truncate">${m.label}</span>
@@ -691,61 +584,50 @@ function renderDashboard() {
   const todayDate = today.getDate() + ' ' + NAMA_BULAN[today.getMonth()] + ' ' + today.getFullYear();
   const myTentorId = getMyTentorId();
   const tgl = todayISO();
-
   let jadwalHariIni = DB.jadwal.filter(j => j.tanggal === tgl);
   if (!isAdmin && myTentorId) jadwalHariIni = jadwalHariIni.filter(j => j.tentor_id === myTentorId);
   jadwalHariIni.sort((a,b) => (a.jam_mulai || '').localeCompare(b.jam_mulai || ''));
-
   const belumBayar = DB.invoice.filter(i => i.jenis === 'siswa' && i.status === 'belum_bayar');
-
   let recentLaporan = DB.laporan;
   if (!isAdmin && myTentorId) recentLaporan = recentLaporan.filter(l => l.tentor_id === myTentorId);
   recentLaporan = recentLaporan.slice(0, 3);
-
   const bulanKey = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
   const invBulan = DB.invoice.filter(i => (i.tanggal||'').startsWith(bulanKey));
   const pemasukanBulan = invBulan.filter(i=>i.jenis==='siswa' && i.status==='lunas').reduce((a,b)=>a+b.total,0);
-  const pengeluaranBulan = invBulan.filter(i=>i.jenis==='tentor' && i.status==='lunas').reduce((a,b)=>a+b.total,0);
-
+  const pengeluaranBulan = invBulan.filter(i=>(i.jenis==='tentor'||i.jenis==='pengeluaran') && i.status==='lunas').reduce((a,b)=>a+b.total,0);
   return `
     <div class="space-y-6">
       <div>
         <h1 class="text-2xl font-bold mb-1">Dashboard ${isAdmin?'Admin':'Tentor'}</h1>
         <p class="text-gray-500 text-sm">Selamat datang, ${escapeHtml(s.nama)} 👋 — ${todayDate}</p>
       </div>
-
       <div class="grid grid-cols-2 ${isAdmin?'md:grid-cols-4':'md:grid-cols-3'} gap-3 md:gap-4">
         <div class="bg-white rounded-xl p-4 border hover:shadow-md transition">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs text-gray-500 font-medium">${isAdmin?'Total Siswa':'Siswa Saya'}</span>
+          <div class="flex items-center justify-between mb-2"><span class="text-xs text-gray-500 font-medium">${isAdmin?'Total Siswa':'Siswa Saya'}</span>
             <div class="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center"><i data-lucide="users" class="w-4 h-4 text-orange-600"></i></div>
           </div>
           <div class="text-2xl font-bold">${DB.siswa.length}</div>
         </div>
         ${isAdmin ? `
         <div class="bg-white rounded-xl p-4 border hover:shadow-md transition">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs text-gray-500 font-medium">Total Tentor</span>
+          <div class="flex items-center justify-between mb-2"><span class="text-xs text-gray-500 font-medium">Total Tentor</span>
             <div class="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center"><i data-lucide="user-cog" class="w-4 h-4 text-emerald-600"></i></div>
           </div>
           <div class="text-2xl font-bold">${DB.tentor.length}</div>
         </div>
         <div class="bg-white rounded-xl p-4 border hover:shadow-md transition">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs text-gray-500 font-medium">Pemasukan Bulan Ini</span>
+          <div class="flex items-center justify-between mb-2"><span class="text-xs text-gray-500 font-medium">Pemasukan Bulan Ini</span>
             <div class="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center"><i data-lucide="wallet" class="w-4 h-4 text-blue-600"></i></div>
           </div>
           <div class="text-lg md:text-xl font-bold text-emerald-600 truncate">${rupiah(pemasukanBulan)}</div>
         </div>` : ''}
         <div class="bg-white rounded-xl p-4 border hover:shadow-md transition">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs text-gray-500 font-medium">${isAdmin?'Total Laporan':'Laporan Saya'}</span>
+          <div class="flex items-center justify-between mb-2"><span class="text-xs text-gray-500 font-medium">${isAdmin?'Total Laporan':'Laporan Saya'}</span>
             <div class="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center"><i data-lucide="file-check" class="w-4 h-4 text-purple-600"></i></div>
           </div>
           <div class="text-2xl font-bold">${DB.laporan.length}</div>
         </div>
       </div>
-
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-6">
           <div class="bg-white rounded-xl border overflow-hidden">
@@ -774,7 +656,6 @@ function renderDashboard() {
               `}
             </div>
           </div>
-
           <div class="bg-white rounded-xl border overflow-hidden">
             <div class="px-5 py-4 border-b flex items-center justify-between">
               <div class="flex items-center gap-2"><i data-lucide="file-text" class="w-5 h-5 text-orange-600"></i><h2 class="font-bold">Laporan Terbaru</h2></div>
@@ -803,7 +684,6 @@ function renderDashboard() {
             </div>
           </div>
         </div>
-
         <div class="space-y-6">
           ${isAdmin ? `
           <div class="bg-white rounded-xl border overflow-hidden">
@@ -819,7 +699,6 @@ function renderDashboard() {
               </button>
             </div>
           </div>` : ''}
-
           ${isAdmin ? `
           <div class="bg-white rounded-xl border overflow-hidden">
             <div class="px-5 py-4 border-b flex items-center gap-2"><i data-lucide="bar-chart-3" class="w-5 h-5 text-blue-600"></i><h2 class="font-bold">Ringkasan ${NAMA_BULAN[today.getMonth()]}</h2></div>
@@ -829,7 +708,6 @@ function renderDashboard() {
               <div class="flex items-center justify-between p-3 bg-orange-50 rounded-lg border-t-2 border-orange-200"><span class="text-sm font-semibold text-gray-800">Saldo Bersih</span><span class="font-bold text-orange-600 text-lg">${rupiah(pemasukanBulan - pengeluaranBulan)}</span></div>
             </div>
           </div>` : ''}
-
           <div class="bg-white rounded-xl border overflow-hidden">
             <div class="px-5 py-4 border-b flex items-center gap-2"><i data-lucide="zap" class="w-5 h-5 text-orange-600"></i><h2 class="font-bold">Aksi Cepat</h2></div>
             <div class="p-4 space-y-2">
@@ -969,10 +847,7 @@ function renderAkun() {
       ${DB.users.map(u=>`
         <div class="bg-white rounded-xl border p-4">
           <div class="flex justify-between items-start gap-2 mb-2">
-            <div class="flex-1 min-w-0">
-              <div class="font-bold truncate">${escapeHtml(u.nama)}</div>
-              <div class="text-xs text-gray-500 truncate">${escapeHtml(u.email)}</div>
-            </div>
+            <div class="flex-1 min-w-0"><div class="font-bold truncate">${escapeHtml(u.nama)}</div><div class="text-xs text-gray-500 truncate">${escapeHtml(u.email)}</div></div>
             <span class="px-2 py-1 text-xs rounded flex-shrink-0 ${u.role==='admin'?'bg-rose-100 text-rose-700':'bg-emerald-100 text-emerald-700'}">${u.role}</span>
           </div>
           ${u.email !== 'ricokristanto18@gmail.com' ? `
@@ -1003,14 +878,13 @@ function renderAkun() {
 }
 
 function openUserForm() {
-  const body = `<form>
-    <div class="space-y-3">
-      <div><label class="text-sm">Nama Lengkap *</label><input name="nama" required class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
-      <div><label class="text-sm">Email *</label><input name="email" type="email" required class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
-      <div><label class="text-sm">Password Awal *</label><input name="password" required class="w-full border rounded-lg px-3 py-2 mt-1" placeholder="Minimal 6 karakter" /></div>
-      <div><label class="text-sm">Role *</label><select name="role" class="w-full border rounded-lg px-3 py-2 mt-1"><option value="tentor">Tentor</option><option value="admin">Admin</option></select></div>
-      <button type="submit" class="w-full bg-orange-600 text-white py-2 rounded-lg font-semibold mt-4">Buat Akun</button>
-    </div></form>`;
+  const body = `<form><div class="space-y-3">
+    <div><label class="text-sm">Nama Lengkap *</label><input name="nama" required class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+    <div><label class="text-sm">Email *</label><input name="email" type="email" required class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
+    <div><label class="text-sm">Password Awal *</label><input name="password" required class="w-full border rounded-lg px-3 py-2 mt-1" placeholder="Minimal 6 karakter" /></div>
+    <div><label class="text-sm">Role *</label><select name="role" class="w-full border rounded-lg px-3 py-2 mt-1"><option value="tentor">Tentor</option><option value="admin">Admin</option></select></div>
+    <button type="submit" class="w-full bg-orange-600 text-white py-2 rounded-lg font-semibold mt-4">Buat Akun</button>
+  </div></form>`;
   openModal('Tambah Akun Baru', body, simpanUser);
 }
 
@@ -1055,7 +929,6 @@ function renderLaporanTentor() {
   let baseList = [];
   if (role === 'admin') baseList = DB.laporan;
   else if (role === 'tentor' && myTentorId) baseList = DB.laporan.filter(l => l.tentor_id === myTentorId);
-
   const q = (searchLaporan || '').toLowerCase();
   const filtered = baseList.filter(l => {
     const s = DB.siswa.find(x=>x.id===l.siswa_id) || {};
@@ -1064,13 +937,11 @@ function renderLaporanTentor() {
     const matchesTentor = filterLaporanTentor === 'all' || l.tentor_id === filterLaporanTentor;
     return matchesSearch && matchesTentor;
   });
-
   return `<div>
     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
       <div><h1 class="text-2xl font-bold">Laporan Mengajar</h1><p class="text-gray-500 text-sm">${filtered.length} dari ${baseList.length} laporan</p></div>
       ${role==='tentor'?`<button onclick="openLaporanForm()" class="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold self-start">+ Buat</button>`:''}
     </div>
-
     <div class="bg-white rounded-xl border p-3 mb-4 flex flex-col sm:flex-row gap-2">
       <div class="flex-1 relative">
         <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
@@ -1082,14 +953,12 @@ function renderLaporanTentor() {
         ${DB.tentor.map(t => `<option value="${t.id}" ${filterLaporanTentor===t.id?'selected':''}>${escapeHtml(t.nama)}</option>`).join('')}
       </select>` : ''}
     </div>
-
     ${filtered.length === 0 ? `<div class="text-center text-gray-400 py-12 bg-white border rounded-xl"><i data-lucide="search" class="w-10 h-10 mx-auto mb-2 text-gray-300"></i><p>Tidak ada laporan yang cocok.</p></div>` :
     `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       ${filtered.map(l=>{
         const s = DB.siswa.find(x=>x.id===l.siswa_id)||{};
         const t = DB.tentor.find(x=>x.id===l.tentor_id)||{};
         const fotos = getFotoArray(l.foto);
-
         let imageHtml = '';
         if (fotos.length > 1) {
           imageHtml = `<div class="grid grid-cols-2 gap-1 p-2 bg-gray-50 border-b">
@@ -1098,7 +967,6 @@ function renderLaporanTentor() {
         } else if (fotos.length === 1) {
           imageHtml = `<img src="${fotos[0]}" class="w-full h-48 object-cover border-b cursor-pointer hover:opacity-90 transition" onclick="showImagePreview('${fotos[0]}')" onerror="this.style.opacity=0.3;this.alt='⚠️ gagal load';" />`;
         }
-
         return `<div class="bg-white rounded-xl border overflow-hidden flex flex-col relative hover:shadow-md transition">
           ${imageHtml}
           <div class="p-4 flex-1 pb-14">
@@ -1127,9 +995,7 @@ async function downloadLaporanAsWord(laporanId) {
   const siswa = DB.siswa.find(x => x.id === l.siswa_id) || {};
   const tentor = DB.tentor.find(x => x.id === l.tentor_id) || {};
   const fotos = getFotoArray(l.foto);
-
   showToast('Menyiapkan file Word... mohon tunggu', 'info');
-
   const base64Images = [];
   for (const url of fotos) {
     try {
@@ -1142,23 +1008,17 @@ async function downloadLaporanAsWord(laporanId) {
         reader.readAsDataURL(blob);
       });
       base64Images.push(base64);
-    } catch (e) {
-      console.warn('Foto gagal dimuat:', url, e);
-    }
+    } catch (e) { console.warn('Foto gagal dimuat:', url, e); }
   }
-
   const today = formatTanggal(todayISO());
   const safeName = (siswa.nama || 'Siswa').replace(/[^a-zA-Z0-9]/g, '_');
   const catatanHtml = escapeHtml(l.catatan || '-').replace(/\n/g, '<br>');
-
   const html = `<!DOCTYPE html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-<head>
-<meta charset="UTF-8">
-<title>Laporan Mengajar - ${escapeHtml(siswa.nama || '-')}</title>
+<head><meta charset="UTF-8"><title>Laporan Mengajar - ${escapeHtml(siswa.nama || '-')}</title>
 <!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->
 <style>
-  @page { size: A4; margin: 2cm 2cm 2cm 2cm; }
+  @page { size: A4; margin: 2cm; }
   body { font-family: 'Calibri', Arial, sans-serif; font-size: 11pt; color: #000; margin: 0; padding: 0; }
   h1 { color: #ea580c; text-align: center; font-size: 20pt; margin: 0; font-weight: bold; }
   h2 { text-align: center; font-size: 14pt; margin: 4pt 0 20pt 0; font-weight: bold; letter-spacing: 1pt; }
@@ -1170,12 +1030,9 @@ async function downloadLaporanAsWord(laporanId) {
   .photo { text-align: center; margin: 10pt 0; page-break-inside: avoid; }
   .photo img { max-width: 400pt; max-height: 500pt; border: 1px solid #ccc; padding: 4pt; background: #fff; }
   .footer { margin-top: 20pt; text-align: right; font-size: 9pt; color: #888; font-style: italic; }
-</style>
-</head>
+</style></head>
 <body>
-  <h1>JOY BIMBEL</h1>
-  <h2>LAPORAN MENGAJAR</h2>
-
+  <h1>JOY BIMBEL</h1><h2>LAPORAN MENGAJAR</h2>
   <table class="info">
     <tr><td>Nama Siswa</td><td>: ${escapeHtml(siswa.nama || '-')}</td></tr>
     <tr><td>Kelas</td><td>: ${escapeHtml(siswa.kelas || '-')}</td></tr>
@@ -1183,22 +1040,13 @@ async function downloadLaporanAsWord(laporanId) {
     <tr><td>Tentor</td><td>: ${escapeHtml(tentor.nama || '-')}</td></tr>
     <tr><td>Tanggal</td><td>: ${formatTanggal(l.tanggal) || l.tanggal || '-'}</td></tr>
   </table>
-
   <div class="section-title">📚 Topik / Materi</div>
   <div class="content">${escapeHtml(l.topik || '-')}</div>
-
   <div class="section-title">📝 Catatan Perkembangan</div>
   <div class="content">${catatanHtml}</div>
-
-  ${base64Images.length > 0 ? `
-    <div class="section-title">📷 Dokumentasi Foto</div>
-    ${base64Images.map(src => `<div class="photo"><img src="${src}" /></div>`).join('')}
-  ` : ''}
-
+  ${base64Images.length > 0 ? `<div class="section-title">📷 Dokumentasi Foto</div>${base64Images.map(src => `<div class="photo"><img src="${src}" /></div>`).join('')}` : ''}
   <div class="footer">Dicetak: ${today}</div>
-</body>
-</html>`;
-
+</body></html>`;
   const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1216,8 +1064,7 @@ function updateSiswaInfo(siswaId) {
   if (!el) return;
   const s = DB.siswa.find(x => x.id === siswaId);
   if (!s) { el.classList.add('hidden'); el.innerHTML = ''; return; }
-  el.innerHTML = `
-    <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+  el.innerHTML = `<div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
       <div class="text-xs text-blue-700 font-semibold uppercase mb-1 flex items-center gap-1"><i data-lucide="info" class="w-3 h-3"></i> Informasi Siswa</div>
       <div class="text-sm font-bold text-gray-800">${escapeHtml(s.nama || '-')}</div>
       <div class="text-xs text-gray-700 mt-1 space-y-0.5">
@@ -1233,8 +1080,7 @@ function updateSiswaInfo(siswaId) {
 function openLaporanForm(id) {
   const editing = id ? DB.laporan.find(x=>x.id===id) : null;
   const selectedSiswaId = editing?.siswa_id || (DB.siswa[0]?.id || '');
-  const body = `<form id="form-laporan">
-    <div class="space-y-3">
+  const body = `<form id="form-laporan"><div class="space-y-3">
       <div><label class="text-sm">Siswa *</label>
         <select name="siswa_id" required onchange="updateSiswaInfo(this.value)" class="w-full border rounded-lg px-3 py-2 mt-1">
           <option value="">— Pilih Siswa —</option>
@@ -1255,7 +1101,6 @@ function openLaporanForm(id) {
       </div>
       <button type="submit" class="w-full bg-orange-600 text-white py-2 rounded-lg font-semibold">${editing ? 'Simpan Perubahan' : 'Kirim Laporan'}</button>
     </div></form>`;
-
   openModal(editing ? 'Edit Laporan' : 'Buat Laporan', body, async (e) => {
     const f = e.target;
     const fileInput = document.getElementById('foto-input');
@@ -1263,7 +1108,6 @@ function openLaporanForm(id) {
     if (!files.length && !editing) { showToast('Pilih minimal 1 foto!', 'warning'); return; }
     if (files.length > 5) { showToast('Maksimal 5 foto!', 'warning'); return; }
     if (!f.siswa_id.value) { showToast('Pilih siswa terlebih dahulu!', 'warning'); return; }
-
     let fotoUrls = [];
     if (files.length > 0) {
       for (let i = 0; i < files.length; i++) {
@@ -1275,30 +1119,51 @@ function openLaporanForm(id) {
         fotoUrls.push(publicUrl);
       }
     } else if (editing) { fotoUrls = getFotoArray(editing.foto); }
-
     const fotoString = JSON.stringify(fotoUrls);
     const myTentorId = getMyTentorId() || DB.tentor[0]?.id;
     const data = { tentor_id: editing ? editing.tentor_id : myTentorId, siswa_id: f.siswa_id.value, tanggal: f.tanggal.value, mapel: f.mapel.value, topik: f.topik.value, catatan: f.catatan.value, foto: fotoString };
-
     if (editing) { await supabaseClient.from('laporan').update(data).eq('id', editing.id); }
     else { await supabaseClient.from('laporan').insert([data]); }
     showToast(editing ? 'Laporan diperbarui' : 'Laporan tersimpan', 'success');
     closeModal();
   });
-
   if (selectedSiswaId) setTimeout(() => updateSiswaInfo(selectedSiswaId), 50);
+}
+
+function getInvoiceTypeLabel(jenis) {
+  if (jenis === 'siswa') return 'Siswa';
+  if (jenis === 'tentor') return 'Tentor';
+  if (jenis === 'pengeluaran') return 'Operasional';
+  return jenis;
+}
+function getInvoiceTypeBadgeClass(jenis) {
+  if (jenis === 'siswa') return 'bg-orange-100 text-orange-700';
+  if (jenis === 'tentor') return 'bg-amber-100 text-amber-700';
+  if (jenis === 'pengeluaran') return 'bg-blue-100 text-blue-700';
+  return 'bg-gray-100 text-gray-600';
+}
+function getInvoiceRecipientName(inv) {
+  if (inv.jenis === 'siswa') {
+    const s = DB.siswa.find(x=>x.id===inv.untuk_id);
+    return s?.nama || '-';
+  }
+  if (inv.jenis === 'tentor') {
+    const t = DB.tentor.find(x=>x.id===inv.untuk_id);
+    return t?.nama || '-';
+  }
+  if (inv.jenis === 'pengeluaran') return '🏪 Operasional Bimbel';
+  return '-';
 }
 
 function renderInvoice() {
   const q = (searchInvoice || '').toLowerCase();
   const filtered = DB.invoice.filter(i => {
-    const target = i.jenis==='siswa' ? DB.siswa.find(x=>x.id===i.untuk_id) : DB.tentor.find(x=>x.id===i.untuk_id);
-    const matchesSearch = !q || (i.no_invoice||'').toLowerCase().includes(q) || (target?.nama||'').toLowerCase().includes(q);
+    const targetName = getInvoiceRecipientName(i);
+    const matchesSearch = !q || (i.no_invoice||'').toLowerCase().includes(q) || targetName.toLowerCase().includes(q);
     const matchesStatus = filterInvoiceStatus === 'all' || i.status === filterInvoiceStatus;
     const matchesJenis = filterInvoiceJenis === 'all' || i.jenis === filterInvoiceJenis;
     return matchesSearch && matchesStatus && matchesJenis;
   });
-
   return `<div>
     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
       <div><h1 class="text-2xl font-bold">Invoice & Slip Gaji</h1><p class="text-gray-500 text-sm">${filtered.length} dari ${DB.invoice.length} data</p></div>
@@ -1313,6 +1178,7 @@ function renderInvoice() {
         <option value="all" ${filterInvoiceJenis==='all'?'selected':''}>Semua Jenis</option>
         <option value="siswa" ${filterInvoiceJenis==='siswa'?'selected':''}>Siswa</option>
         <option value="tentor" ${filterInvoiceJenis==='tentor'?'selected':''}>Tentor</option>
+        <option value="pengeluaran" ${filterInvoiceJenis==='pengeluaran'?'selected':''}>Pengeluaran</option>
       </select>
       <select onchange="filterInvoiceStatus=this.value; renderPage();" class="border rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-500">
         <option value="all" ${filterInvoiceStatus==='all'?'selected':''}>Semua Status</option>
@@ -1320,16 +1186,17 @@ function renderInvoice() {
         <option value="lunas" ${filterInvoiceStatus==='lunas'?'selected':''}>Lunas</option>
       </select>
     </div>
-
     ${filtered.length === 0 ? `<div class="text-center text-gray-400 py-12 bg-white border rounded-xl"><i data-lucide="search" class="w-10 h-10 mx-auto mb-2 text-gray-300"></i><p>Tidak ada invoice yang cocok.</p></div>` :
     `<>
       <div class="md:hidden space-y-3">
         ${filtered.map(i => {
-          const target = i.jenis==='siswa' ? DB.siswa.find(x=>x.id===i.untuk_id) : DB.tentor.find(x=>x.id===i.untuk_id);
+          const targetName = getInvoiceRecipientName(i);
+          const badgeCls = getInvoiceTypeBadgeClass(i.jenis);
+          const typeLabel = getInvoiceTypeLabel(i.jenis);
           return `<div class="bg-white rounded-xl border p-4">
             <div class="flex justify-between items-start mb-2">
-              <div class="flex-1 min-w-0"><div class="font-mono text-xs text-gray-500 mb-1">${escapeHtml(i.no_invoice)}</div><div class="font-bold truncate">${escapeHtml(target?.nama||'-')}</div></div>
-              <span class="text-xs px-2 py-1 rounded flex-shrink-0 ${i.jenis==='siswa'?'bg-orange-100 text-orange-700':'bg-amber-100 text-amber-700'}">${i.jenis==='siswa'?'Siswa':'Tentor'}</span>
+              <div class="flex-1 min-w-0"><div class="font-mono text-xs text-gray-500 mb-1">${escapeHtml(i.no_invoice)}</div><div class="font-bold truncate">${escapeHtml(targetName)}</div></div>
+              <span class="text-xs px-2 py-1 rounded flex-shrink-0 ${badgeCls}">${typeLabel}</span>
             </div>
             <div class="text-sm space-y-1 py-2 border-t">
               <div class="flex justify-between"><span class="text-gray-500">Periode:</span><span>${escapeHtml(i.periode||'-')}</span></div>
@@ -1353,16 +1220,18 @@ function renderInvoice() {
             <th class="text-right px-4 py-3">Aksi</th>
           </tr></thead>
           <tbody>${filtered.map(i=>{
-            const target = i.jenis==='siswa' ? DB.siswa.find(x=>x.id===i.untuk_id) : DB.tentor.find(x=>x.id===i.untuk_id);
+            const targetName = getInvoiceRecipientName(i);
+            const badgeCls = getInvoiceTypeBadgeClass(i.jenis);
+            const typeLabel = getInvoiceTypeLabel(i.jenis);
             return `<tr class="border-t hover:bg-gray-50">
               <td class="px-4 py-3 font-mono text-xs">${escapeHtml(i.no_invoice)}</td>
-              <td class="px-4 py-3"><span class="text-xs px-2 py-1 rounded ${i.jenis==='siswa'?'bg-orange-100 text-orange-700':'bg-amber-100 text-amber-700'}">${i.jenis==='siswa'?'Siswa':'Tentor'}</span></td>
-              <td class="px-4 py-3">${escapeHtml(target?.nama||'-')}</td>
+              <td class="px-4 py-3"><span class="text-xs px-2 py-1 rounded ${badgeCls}">${typeLabel}</span></td>
+              <td class="px-4 py-3">${escapeHtml(targetName)}</td>
               <td class="px-4 py-3">${escapeHtml(i.periode||'-')}</td>
               <td class="px-4 py-3 font-semibold">${rupiah(i.total)}</td>
               <td class="px-4 py-3"><span class="text-xs px-2 py-1 rounded ${i.status==='lunas'?'bg-emerald-100 text-emerald-700':'bg-rose-100 text-rose-700'}">${i.status==='lunas'?'Lunas':'Belum Bayar'}</span></td>
               <td class="px-4 py-3 text-right whitespace-nowrap">
-                <button onclick="openInvoiceDetail('${i.id}')" class="text-orange-600 hover:bg-orange-50 p-1.5 rounded" title="Cetak / WA"><i data-lucide="eye" class="w-4 h-4"></i></button>
+                <button onclick="openInvoiceDetail('${i.id}')" class="text-orange-600 hover:bg-orange-50 p-1.5 rounded" title="Lihat / Cetak"><i data-lucide="eye" class="w-4 h-4"></i></button>
                 <button onclick="openInvoiceForm('${i.id}')" class="text-blue-600 hover:bg-blue-50 p-1.5 rounded" title="Edit"><i data-lucide="pencil" class="w-4 h-4"></i></button>
                 <button onclick="deleteRecord('invoice','${i.id}','${i.no_invoice}')" class="text-red-600 hover:bg-red-50 p-1.5 rounded" title="Hapus"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
               </td>
@@ -1376,23 +1245,30 @@ function renderInvoice() {
 
 function openInvoiceForm(id) {
   const editing = id ? DB.invoice.find(x=>x.id===id) : null;
+  const initialJenis = editing?.jenis || 'siswa';
   const body = `<form id="form-invoice">
     <div class="space-y-3">
       <div><label class="text-sm font-medium">Jenis Dokumen *</label>
         <select name="jenis" onchange="onJenisChange(this.value)" class="w-full border rounded-lg px-3 py-2 mt-1">
-          <option value="siswa" ${editing?.jenis==='siswa'||!editing?'selected':''}>👨‍👩‍👧 Tagihan / Invoice Siswa</option>
-          <option value="tentor" ${editing?.jenis==='tentor'?'selected':''}>👨‍🏫 Slip Gaji Tentor</option>
+          <option value="siswa" ${initialJenis==='siswa'?'selected':''}>📚 Tagihan / Invoice Siswa</option>
+          <option value="tentor" ${initialJenis==='tentor'?'selected':''}>👨‍🏫 Slip Gaji Tentor</option>
+          <option value="pengeluaran" ${initialJenis==='pengeluaran'?'selected':''}>💸 Pengeluaran Operasional</option>
         </select></div>
-      <div>
+      <div id="recipient-wrapper">
         <label class="text-sm font-medium">Penerima *</label>
         <div class="flex gap-2 mt-1">
           <select name="untuk_id" id="recipient-select" required onchange="onRecipientChange(this.value)" class="flex-1 border rounded-lg px-3 py-2"></select>
           <button type="button" id="btn-fetch-jadwal" onclick="onRecipientChange(document.getElementById('recipient-select').value)" class="hidden bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-1"><i data-lucide="refresh-cw" class="w-4 h-4"></i> Tarik Jadwal</button>
         </div>
       </div>
+      <div id="pengeluaran-info" class="hidden">
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <p class="text-xs text-blue-700"><b>💡 Info:</b> Gunakan jenis ini untuk mencatat pengeluaran operasional bimbel (beli buku, cetak materi, ATK, dll). Status otomatis <b>Lunas</b>.</p>
+        </div>
+      </div>
       <div><label class="text-sm font-medium">Periode</label><input name="periode" value="${escapeHtml(editing?.periode||periodeNow())}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
       <div><label class="text-sm font-medium">Item</label><div id="items-container" class="space-y-2 mt-1"></div><button type="button" onclick="addItemRow()" class="mt-2 text-sm text-orange-600 hover:underline font-semibold">+ Tambah Baris</button></div>
-      <div><label class="text-sm font-medium">Status</label>
+      <div id="status-wrapper"><label class="text-sm font-medium">Status</label>
         <select name="status" class="w-full border rounded-lg px-3 py-2 mt-1">
           <option value="belum_bayar" ${editing?.status==='belum_bayar'||!editing?'selected':''}>Belum Bayar</option>
           <option value="lunas" ${editing?.status==='lunas'?'selected':''}>Lunas / Sudah Dibayar</option>
@@ -1400,9 +1276,9 @@ function openInvoiceForm(id) {
       <div class="flex justify-between items-center pt-3 border-t"><span class="text-sm text-gray-500">Total</span><span id="invoice-total" class="text-xl font-bold text-orange-600">Rp0</span></div>
       <button type="submit" class="w-full bg-rose-600 text-white py-2 rounded-lg font-semibold mt-4">Simpan Dokumen</button>
     </div></form>`;
-
   openModal(editing ? 'Edit Dokumen' : 'Buat Dokumen Baru', body, async (e) => {
     const f = e.target;
+    const jenis = f.jenis.value;
     const items = [];
     document.querySelectorAll('#items-container .item-row').forEach(row => {
       const deskripsi = row.querySelector('.item-desk').value.trim();
@@ -1417,24 +1293,50 @@ function openInvoiceForm(id) {
     });
     if (items.length === 0) { showToast('Minimal 1 item harus diisi', 'warning'); return; }
     const total = items.reduce((a,it)=>a+it.qty*it.harga, 0);
-    const data = { jenis: f.jenis.value, untuk_id: f.untuk_id.value, periode: f.periode.value.trim(), items: items, total: total, status: f.status.value };
+    let untuk_id = null;
+    if (jenis !== 'pengeluaran') untuk_id = f.untuk_id.value;
+    const status = jenis === 'pengeluaran' ? 'lunas' : f.status.value;
+    const data = { jenis: jenis, untuk_id: untuk_id, periode: f.periode.value.trim(), items: items, total: total, status: status };
     if (editing) { await supabaseClient.from('invoice').update(data).eq('id', editing.id); }
     else { const no = `INV-${new Date().getFullYear()}-${Math.floor(Math.random()*1000)}`; await supabaseClient.from('invoice').insert([{ no_invoice: no, ...data, tanggal: todayISO() }]); }
     showToast(editing ? 'Dokumen diperbarui' : 'Dokumen tersimpan', 'success');
     closeModal();
   });
-
-  const jenis = editing?.jenis || 'siswa';
-  refreshRecipients(jenis, editing?.untuk_id);
-  setTimeout(() => { toggleItemFields(jenis); }, 50);
-
+  refreshRecipients(initialJenis, editing?.untuk_id);
+  setTimeout(() => {
+    toggleItemFields(initialJenis);
+    applyJenisUI(initialJenis);
+    if (initialJenis === 'pengeluaran') {
+      const statusSel = document.querySelector('select[name="status"]');
+      if (statusSel) statusSel.value = 'lunas';
+    }
+  }, 50);
   const items = editing ? editing.items : [{deskripsi:'', qty:1, harga:0}];
   if(Array.isArray(items)) items.forEach(it => addItemRow(it));
   updateInvoiceTotal();
 }
 
+function applyJenisUI(jenis) {
+  const recipWrap = document.getElementById('recipient-wrapper');
+  const pengeluaranInfo = document.getElementById('pengeluaran-info');
+  const statusSel = document.querySelector('#form-invoice select[name="status"]');
+  const statusWrap = document.getElementById('status-wrapper');
+  if (jenis === 'pengeluaran') {
+    if (recipWrap) recipWrap.classList.add('hidden');
+    if (pengeluaranInfo) pengeluaranInfo.classList.remove('hidden');
+    if (statusSel) { statusSel.value = 'lunas'; statusSel.disabled = true; }
+    if (statusWrap) statusWrap.classList.add('opacity-60');
+  } else {
+    if (recipWrap) recipWrap.classList.remove('hidden');
+    if (pengeluaranInfo) pengeluaranInfo.classList.add('hidden');
+    if (statusSel) statusSel.disabled = false;
+    if (statusWrap) statusWrap.classList.remove('opacity-60');
+  }
+}
+
 function onJenisChange(jenis) {
   refreshRecipients(jenis, '');
+  applyJenisUI(jenis);
   toggleItemFields(jenis);
   document.getElementById('items-container').innerHTML = '';
   addItemRow();
@@ -1447,7 +1349,6 @@ function onRecipientChange(untukId) {
   const jenis = document.querySelector('select[name="jenis"]').value;
   const btn = document.getElementById('btn-fetch-jadwal');
   if (btn) btn.classList.toggle('hidden', jenis !== 'tentor');
-
   if (jenis === 'tentor' && untukId) {
     const tentor = DB.tentor.find(t => t.id === untukId);
     if (!tentor) return;
@@ -1523,6 +1424,12 @@ function toggleItemFields(jenis) {
 function refreshRecipients(jenis, selectedId) {
   const sel = document.getElementById('recipient-select');
   if (!sel) return;
+  if (jenis === 'pengeluaran') {
+    sel.innerHTML = '<option value="">Operasional Bimbel</option>';
+    sel.required = false;
+    return;
+  }
+  sel.required = true;
   const data = jenis === 'siswa' ? DB.siswa : DB.tentor;
   sel.innerHTML = '<option value="">— Pilih —</option>' + data.map(d => `<option value="${d.id}" ${d.id===selectedId?'selected':''}>${escapeHtml(jenis==='siswa' ? `${d.nama} (${d.nama_orang_tua||'-'})` : `${d.nama} - ${d.mapel||'-'}`)}</option>`).join('');
 }
@@ -1539,8 +1446,9 @@ function addItemRow(item) {
     html += `<input type="date" class="item-tgl w-full md:w-32 border rounded-lg px-2 py-1.5 text-sm flex-shrink-0" value="${it.tanggal || ''}" required />`;
     html += `<select class="item-siswa w-full md:w-32 border rounded-lg px-2 py-1.5 text-sm flex-shrink-0" required><option value="">Pilih</option>${DB.siswa.map(s => `<option value="${s.id}" ${it.siswa_id===s.id?'selected':''}>${s.nama}</option>`).join('')}</select>`;
   }
+  const ph = jenis==='tentor' ? 'Materi / Topik' : (jenis==='pengeluaran' ? 'Keterangan (beli buku, cetak materi, dll)' : 'Deskripsi');
   html += `
-    <input class="item-desk flex-1 w-full border rounded-lg px-2 py-1.5 text-sm" placeholder="${jenis==='tentor'?'Materi / Topik':'Deskripsi'}" value="${escapeHtml(it.deskripsi)}" required />
+    <input class="item-desk flex-1 w-full border rounded-lg px-2 py-1.5 text-sm" placeholder="${ph}" value="${escapeHtml(it.deskripsi)}" required />
     <input class="item-qty w-full md:w-14 border rounded-lg px-2 py-1.5 text-sm" type="number" min="1" value="${it.qty}" oninput="updateInvoiceTotal()" required />
     <input class="item-harga w-full md:w-24 border rounded-lg px-2 py-1.5 text-sm" type="number" min="0" value="${it.harga}" oninput="updateInvoiceTotal()" required />
     <button type="button" onclick="this.parentElement.remove(); updateInvoiceTotal();" class="text-red-500 hover:bg-red-50 p-1.5 rounded font-bold self-end md:self-auto">✕</button>
@@ -1562,29 +1470,34 @@ function updateInvoiceTotal() {
 function openInvoiceDetail(id) {
   const inv = DB.invoice.find(x=>x.id===id);
   if (!inv) return;
-  const target = inv.jenis==='siswa' ? DB.siswa.find(x=>x.id===inv.untuk_id) : DB.tentor.find(x=>x.id===inv.untuk_id);
-  const waNumber = formatWa(target?.no_wa || '');
-  const waNama = inv.jenis==='siswa' ? (target?.nama_orang_tua||target?.nama||'') : (target?.nama||'');
-  let waMsgText = "";
-  if (inv.jenis === 'tentor') {
-    waMsgText = `Halo ${waNama},\n\nBerikut slip gaji *${inv.no_invoice}* periode *${inv.periode}* dengan total *${rupiah(inv.total)}*.\n\nStatus: Lunas\n\nTerima kasih 🙏\nJoy Bimbel`;
-  } else if (inv.jenis === 'siswa') {
-    if (inv.status === 'lunas') waMsgText = `Halo Bpk/Ibu ${waNama},\n\nBerikut bukti pelunasan invoice *${inv.no_invoice}* periode *${inv.periode}* dengan total *${rupiah(inv.total)}*.\n\nStatus: LUNAS\n\nTerima kasih 🙏\nJoy Bimbel`;
-    else waMsgText = `Halo Bpk/Ibu ${waNama},\n\nBerikut tagihan *${inv.no_invoice}* periode *${inv.periode}* dengan total *${rupiah(inv.total)}*.\n\nStatus: BELUM BAYAR\n\n*Pembayaran ke:*\nBNI: 2079385983\nBCA: 4720524304\nBRI: 180701015922501\na.n. Joice Zhenrike Memmase\n\nTerima kasih 🙏\nJoy Bimbel`;
+  let waNumber = '', waMsgText = '';
+  if (inv.jenis === 'siswa' || inv.jenis === 'tentor') {
+    const target = inv.jenis==='siswa' ? DB.siswa.find(x=>x.id===inv.untuk_id) : DB.tentor.find(x=>x.id===inv.untuk_id);
+    waNumber = formatWa(target?.no_wa || '');
+    const waNama = inv.jenis==='siswa' ? (target?.nama_orang_tua||target?.nama||'') : (target?.nama||'');
+    if (inv.jenis === 'tentor') {
+      waMsgText = `Halo ${waNama},\n\nBerikut slip gaji *${inv.no_invoice}* periode *${inv.periode}* dengan total *${rupiah(inv.total)}*.\n\nStatus: Lunas\n\nTerima kasih 🙏\nJoy Bimbel`;
+    } else {
+      if (inv.status === 'lunas') waMsgText = `Halo Bpk/Ibu ${waNama},\n\nBerikut bukti pelunasan invoice *${inv.no_invoice}* periode *${inv.periode}* dengan total *${rupiah(inv.total)}*.\n\nStatus: LUNAS\n\nTerima kasih 🙏\nJoy Bimbel`;
+      else waMsgText = `Halo Bpk/Ibu ${waNama},\n\nBerikut tagihan *${inv.no_invoice}* periode *${inv.periode}* dengan total *${rupiah(inv.total)}*.\n\nStatus: BELUM BAYAR\n\n*Pembayaran ke:*\nBNI: 2079385983\nBCA: 4720524304\nBRI: 180701015922501\na.n. Joice Zhenrike Memmase\n\nTerima kasih 🙏\nJoy Bimbel`;
+    }
   }
   const body = `
-    <div class="overflow-x-auto">${buildInvoiceHTML(inv, target)}</div>
+    <div class="overflow-x-auto">${buildInvoiceHTML(inv)}</div>
     <div class="flex flex-wrap gap-2 mt-4 pt-4 border-t">
       <button onclick="printInvoice('${id}')" class="flex-1 bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 font-semibold">🖨️ Cetak PDF</button>
-      <a href="https://wa.me/${waNumber}?text=${encodeURIComponent(waMsgText)}" target="_blank" class="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-center font-semibold">📱 Kirim WA</a>
+      ${(inv.jenis === 'siswa' || inv.jenis === 'tentor') && waNumber ? `<a href="https://wa.me/${waNumber}?text=${encodeURIComponent(waMsgText)}" target="_blank" class="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-center font-semibold">📱 Kirim WA</a>` : ''}
     </div>`;
   openModal('Detail Dokumen', body);
 }
 
-function buildInvoiceHTML(inv, target) {
-  const namaPenerima = inv.jenis==='siswa'
-    ? `${target?.nama_orang_tua || '-'}<br/><span class="text-sm text-gray-600">Siswa: ${target?.nama || '-'}</span>`
-    : `${target?.nama || '-'}<br/><span class="text-sm text-gray-600">${target?.mapel || '-'}</span>`;
+function buildInvoiceHTML(inv) {
+  const target = inv.jenis==='siswa' ? DB.siswa.find(x=>x.id===inv.untuk_id) : (inv.jenis==='tentor' ? DB.tentor.find(x=>x.id===inv.untuk_id) : null);
+  let namaPenerima = '-';
+  if (inv.jenis === 'siswa') namaPenerima = `${target?.nama_orang_tua || '-'}<br/><span class="text-sm text-gray-600">Siswa: ${target?.nama || '-'}</span>`;
+  else if (inv.jenis === 'tentor') namaPenerima = `${target?.nama || '-'}<br/><span class="text-sm text-gray-600">${target?.mapel || '-'}</span>`;
+  else if (inv.jenis === 'pengeluaran') namaPenerima = '🏪 Operasional Bimbel';
+
   let itemsArr = inv.items;
   if (!Array.isArray(itemsArr)) itemsArr = [];
   let docTitle = 'INVOICE';
@@ -1594,6 +1507,7 @@ function buildInvoiceHTML(inv, target) {
   itemsArr.forEach(it => { totalQty += Number(it.qty)||0; });
 
   if (inv.jenis === 'tentor') { docTitle = 'SLIP GAJI'; headerLabel = 'Pembayaran kepada :'; }
+  else if (inv.jenis === 'pengeluaran') { docTitle = 'NOTA PENGELUARAN'; headerLabel = 'Keterangan:'; }
   else if (inv.jenis === 'siswa') {
     if (inv.status === 'lunas') headerLabel = 'Pelunasan oleh :';
     else { headerLabel = 'Ditagihkan kepada:'; showBank = true; }
@@ -1662,13 +1576,15 @@ function buildInvoiceHTML(inv, target) {
     </div>
     ${tableContent}
     <div class="flex justify-between items-end mt-4 relative">
-      ${inv.jenis === 'tentor' || inv.status === 'lunas' ? `
+      ${inv.jenis === 'tentor' || inv.jenis === 'pengeluaran' || inv.status === 'lunas' ? `
       <div class="w-32 h-32 md:w-40 md:h-40 opacity-70 transform -rotate-12 pointer-events-none flex-shrink-0">
-        ${LOGO_URL ? `<img src="${LOGO_URL}" class="w-full h-full object-contain" />` : `<div class="w-full h-full border-4 border-blue-900 text-blue-900 rounded-full flex flex-col items-center justify-center font-bold text-xl"><span class="text-[10px] tracking-widest">JOY BIMBEL</span><div class="border-y-2 border-blue-900 py-1 my-1 w-full text-center">LUNAS</div><span class="text-[10px]">${new Date().toLocaleDateString('id-ID')}</span></div>`}
+        ${LOGO_URL ? `<img src="${LOGO_URL}" class="w-full h-full object-contain" />` : `<div class="w-full h-full border-4 border-blue-900 text-blue-900 rounded-full flex flex-col items-center justify-center font-bold text-xl"><span class="text-[10px] tracking-widest">JOY BIMBEL</span><div class="border-y-2 border-blue-900 py-1 my-1 w-full text-center">${inv.jenis==='pengeluaran'?'SELESAI':'LUNAS'}</div><span class="text-[10px]">${new Date().toLocaleDateString('id-ID')}</span></div>`}
       </div>
       ` : '<div></div>'}
       <div class="text-right flex-shrink-0 z-10">
-        ${inv.jenis === 'tentor' ? `<p class="text-sm text-gray-500">Total Fee Diterima</p><p class="text-2xl md:text-3xl font-bold text-orange-600">${rupiah(inv.total)}</p><p class="text-sm mt-1 text-emerald-600 font-bold">✅ LUNAS</p>` : `<p class="text-sm text-gray-500">Total</p><p class="text-2xl md:text-3xl font-bold text-orange-600">${rupiah(inv.total)}</p><p class="text-sm mt-1 ${inv.status==='lunas'?'text-emerald-600':'text-rose-600'} font-bold">${inv.status==='lunas'?'✅ LUNAS':'⏳ BELUM BAYAR'}</p>`}
+        ${inv.jenis === 'tentor' ? `<p class="text-sm text-gray-500">Total Fee Diterima</p><p class="text-2xl md:text-3xl font-bold text-orange-600">${rupiah(inv.total)}</p><p class="text-sm mt-1 text-emerald-600 font-bold">✅ LUNAS</p>` :
+        inv.jenis === 'pengeluaran' ? `<p class="text-sm text-gray-500">Total Pengeluaran</p><p class="text-2xl md:text-3xl font-bold text-blue-600">${rupiah(inv.total)}</p><p class="text-sm mt-1 text-blue-600 font-bold">💸 TELAH DIKELUARKAN</p>` :
+        `<p class="text-sm text-gray-500">Total</p><p class="text-2xl md:text-3xl font-bold text-orange-600">${rupiah(inv.total)}</p><p class="text-sm mt-1 ${inv.status==='lunas'?'text-emerald-600':'text-rose-600'} font-bold">${inv.status==='lunas'?'✅ LUNAS':'⏳ BELUM BAYAR'}</p>`}
       </div>
     </div>
     ${showBank ? `<div class="mt-8 pt-4 border-t border-gray-300 text-sm text-gray-700">
@@ -1683,20 +1599,33 @@ function buildInvoiceHTML(inv, target) {
 function printInvoice(id) {
   const inv = DB.invoice.find(x=>x.id===id);
   if (!inv) return;
-  const target = inv.jenis==='siswa' ? DB.siswa.find(x=>x.id===inv.untuk_id) : DB.tentor.find(x=>x.id===inv.untuk_id);
-  document.getElementById('print-area').innerHTML = buildInvoiceHTML(inv, target);
+  document.getElementById('print-area').innerHTML = buildInvoiceHTML(inv);
   setTimeout(() => { window.print(); setTimeout(() => { document.getElementById('print-area').innerHTML = ''; }, 1000); }, 100);
 }
 
 // ===== GRAFIK KEUANGAN =====
-function getMonthlyFinanceData(period) {
+function getKeuanganChartData() {
+  if (keuanganMode === 'bulan') {
+    const year = keuanganTahun;
+    const month = keuanganBulan;
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const labels = [], pemasukan = [], pengeluaran = [];
+    for (let d = 1; d <= daysInMonth; d++) {
+      const key = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      labels.push(String(d));
+      const m = DB.invoice.filter(i => i.jenis==='siswa' && i.status==='lunas' && (i.tanggal||'').slice(0,10)===key).reduce((a,b)=>a+Number(b.total||0),0);
+      const k = DB.invoice.filter(i => (i.jenis==='tentor'||i.jenis==='pengeluaran') && i.status==='lunas' && (i.tanggal||'').slice(0,10)===key).reduce((a,b)=>a+Number(b.total||0),0);
+      pemasukan.push(m);
+      pengeluaran.push(k);
+    }
+    return { labels, pemasukan, pengeluaran, granularity: 'day' };
+  }
   const now = new Date();
   let monthsBack = 6;
-  if (period === '6') monthsBack = 6;
-  else if (period === '12') monthsBack = 12;
-  else if (period === 'tahun-ini') monthsBack = now.getMonth() + 1;
-
-  const result = { labels: [], pemasukan: [], pengeluaran: [] };
+  if (keuanganMode === '6') monthsBack = 6;
+  else if (keuanganMode === '12') monthsBack = 12;
+  else if (keuanganMode === 'tahun-ini') monthsBack = now.getMonth() + 1;
+  const labels = [], pemasukan = [], pengeluaran = [];
   for (let i = monthsBack - 1; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const year = d.getFullYear();
@@ -1704,12 +1633,35 @@ function getMonthlyFinanceData(period) {
     const key = `${year}-${month}`;
     const label = NAMA_BULAN_SINGKAT[d.getMonth()] + ' ' + String(year).slice(-2);
     const masuk = DB.invoice.filter(inv => inv.jenis === 'siswa' && inv.status === 'lunas' && (inv.tanggal || '').startsWith(key)).reduce((a,b) => a + Number(b.total || 0), 0);
-    const keluar = DB.invoice.filter(inv => inv.jenis === 'tentor' && inv.status === 'lunas' && (inv.tanggal || '').startsWith(key)).reduce((a,b) => a + Number(b.total || 0), 0);
-    result.labels.push(label);
-    result.pemasukan.push(masuk);
-    result.pengeluaran.push(keluar);
+    const keluar = DB.invoice.filter(inv => (inv.jenis === 'tentor' || inv.jenis === 'pengeluaran') && inv.status === 'lunas' && (inv.tanggal || '').startsWith(key)).reduce((a,b) => a + Number(b.total || 0), 0);
+    labels.push(label);
+    pemasukan.push(masuk);
+    pengeluaran.push(keluar);
   }
-  return result;
+  return { labels, pemasukan, pengeluaran, granularity: 'month' };
+}
+
+function getDynamicStepSize(maxVal) {
+  if (maxVal <= 0) return 50000;
+  if (maxVal < 500000) return 50000;
+  if (maxVal < 1000000) return 100000;
+  if (maxVal < 5000000) return 500000;
+  if (maxVal < 10000000) return 1000000;
+  if (maxVal < 50000000) return 5000000;
+  if (maxVal < 100000000) return 10000000;
+  return 50000000;
+}
+
+function getAvailableYears() {
+  const years = new Set([new Date().getFullYear()]);
+  DB.invoice.forEach(i => {
+    const t = i.tanggal || '';
+    if (t.length >= 4) {
+      const y = parseInt(t.slice(0, 4));
+      if (y >= 2000 && y <= 2100) years.add(y);
+    }
+  });
+  return Array.from(years).sort((a,b) => b - a);
 }
 
 function setKeuanganChartType(type) {
@@ -1723,8 +1675,18 @@ function setKeuanganChartType(type) {
   initKeuanganChart();
 }
 
-function setKeuanganPeriod(p) {
-  keuanganPeriod = p;
+function setKeuanganMode(mode) {
+  keuanganMode = mode;
+  renderPage();
+}
+
+function setKeuanganBulan(b) {
+  keuanganBulan = parseInt(b);
+  renderPage();
+}
+
+function setKeuanganTahun(y) {
+  keuanganTahun = parseInt(y);
   renderPage();
 }
 
@@ -1732,10 +1694,10 @@ function initKeuanganChart() {
   const canvas = document.getElementById('keuangan-chart');
   if (!canvas || typeof Chart === 'undefined') return;
   if (keuanganChartInstance) { try { keuanganChartInstance.destroy(); } catch(e) {} keuanganChartInstance = null; }
-
-  const data = getMonthlyFinanceData(keuanganPeriod);
+  const data = getKeuanganChartData();
   const isLine = keuanganChartType === 'line';
-
+  const maxVal = Math.max(0, ...data.pemasukan, ...data.pengeluaran);
+  const stepSize = getDynamicStepSize(maxVal);
   keuanganChartInstance = new Chart(canvas, {
     type: keuanganChartType,
     data: {
@@ -1785,14 +1747,22 @@ function initKeuanganChart() {
           bodyFont: { size: 12 },
           padding: 12,
           cornerRadius: 8,
-          callbacks: { label: (ctx) => ctx.dataset.label + ': ' + rupiah(ctx.parsed.y) }
+          callbacks: {
+            title: (items) => {
+              if (data.granularity === 'day') return `${items[0].label} ${NAMA_BULAN[keuanganBulan-1]} ${keuanganTahun}`;
+              return items[0].label;
+            },
+            label: (ctx) => ctx.dataset.label + ': ' + rupiah(ctx.parsed.y)
+          }
         }
       },
       scales: {
         y: {
           beginAtZero: true,
           ticks: {
+            stepSize: stepSize,
             callback: (v) => {
+              if (v >= 1000000000) return 'Rp' + (v/1000000000).toFixed(1) + 'M';
               if (v >= 1000000) return 'Rp' + (v/1000000).toFixed(1) + 'jt';
               if (v >= 1000) return 'Rp' + (v/1000).toFixed(0) + 'rb';
               return 'Rp' + v;
@@ -1801,7 +1771,7 @@ function initKeuanganChart() {
           },
           grid: { color: 'rgba(0,0,0,0.05)' }
         },
-        x: { grid: { display: false }, ticks: { font: { size: 11 } } }
+        x: { grid: { display: false }, ticks: { font: { size: 11 }, maxRotation: 0, autoSkip: true, autoSkipPadding: 8 } }
       }
     }
   });
@@ -1810,70 +1780,85 @@ function initKeuanganChart() {
 function renderLaporanKeuangan() {
   const inv = DB.invoice;
   const pemasukan = inv.filter(i=>i.jenis==='siswa' && i.status==='lunas').reduce((a,b)=>a+b.total,0);
-  const pengeluaran = inv.filter(i=>i.jenis==='tentor' && i.status==='lunas').reduce((a,b)=>a+b.total,0);
-  const periodeData = getMonthlyFinanceData(keuanganPeriod);
+  const gajiTentor = inv.filter(i=>i.jenis==='tentor' && i.status==='lunas').reduce((a,b)=>a+b.total,0);
+  const operasional = inv.filter(i=>i.jenis==='pengeluaran' && i.status==='lunas').reduce((a,b)=>a+b.total,0);
+  const totalPengeluaran = gajiTentor + operasional;
+  const periodeData = getKeuanganChartData();
   const totalPeriodeMasuk = periodeData.pemasukan.reduce((a,b)=>a+b,0);
   const totalPeriodeKeluar = periodeData.pengeluaran.reduce((a,b)=>a+b,0);
-
   setTimeout(initKeuanganChart, 80);
-
+  const years = getAvailableYears();
   const periods = [
     { id: '6', label: '6 Bulan' },
     { id: '12', label: '12 Bulan' },
-    { id: 'tahun-ini', label: 'Tahun Ini' }
+    { id: 'tahun-ini', label: 'Tahun Ini' },
+    { id: 'bulan', label: 'Per Bulan' }
   ];
-
+  const monthOptions = NAMA_BULAN.map((n, idx) => `<option value="${idx+1}" ${keuanganBulan===idx+1?'selected':''}>${n}</option>`).join('');
+  const yearOptions = years.map(y => `<option value="${y}" ${keuanganTahun===y?'selected':''}>${y}</option>`).join('');
+  const periodeLabel = keuanganMode === 'bulan' ? `${NAMA_BULAN[keuanganBulan-1]} ${keuanganTahun}` : (keuanganMode === '6' ? '6 Bulan Terakhir' : (keuanganMode === '12' ? '12 Bulan Terakhir' : 'Tahun Ini'));
   return `<div>
     <div class="mb-4">
       <h1 class="text-2xl font-bold">Laporan Keuangan</h1>
       <p class="text-gray-500 text-sm">Ringkasan & grafik pemasukan dan pengeluaran</p>
     </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-      <div class="bg-white p-5 rounded-xl border hover:shadow-md transition">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
+      <div class="bg-white p-4 rounded-xl border hover:shadow-md transition">
         <div class="flex items-center justify-between mb-2">
-          <div class="text-xs text-gray-500 font-medium">Total Pemasukan Lunas</div>
+          <div class="text-xs text-gray-500 font-medium">Pemasukan</div>
           <div class="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center"><i data-lucide="trending-up" class="w-4 h-4 text-emerald-600"></i></div>
         </div>
-        <div class="text-xl font-bold text-emerald-600">${rupiah(pemasukan)}</div>
+        <div class="text-base md:text-lg font-bold text-emerald-600">${rupiah(pemasukan)}</div>
       </div>
-      <div class="bg-white p-5 rounded-xl border hover:shadow-md transition">
+      <div class="bg-white p-4 rounded-xl border hover:shadow-md transition">
         <div class="flex items-center justify-between mb-2">
-          <div class="text-xs text-gray-500 font-medium">Total Gaji Dibayar</div>
-          <div class="w-8 h-8 bg-rose-50 rounded-lg flex items-center justify-center"><i data-lucide="trending-down" class="w-4 h-4 text-rose-600"></i></div>
+          <div class="text-xs text-gray-500 font-medium">Gaji Tentor</div>
+          <div class="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center"><i data-lucide="user-cog" class="w-4 h-4 text-amber-600"></i></div>
         </div>
-        <div class="text-xl font-bold text-rose-600">${rupiah(pengeluaran)}</div>
+        <div class="text-base md:text-lg font-bold text-amber-600">${rupiah(gajiTentor)}</div>
       </div>
-      <div class="bg-white p-5 rounded-xl border hover:shadow-md transition">
+      <div class="bg-white p-4 rounded-xl border hover:shadow-md transition">
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-xs text-gray-500 font-medium">Operasional</div>
+          <div class="w-8 h-8 bg-rose-50 rounded-lg flex items-center justify-center"><i data-lucide="shopping-cart" class="w-4 h-4 text-rose-600"></i></div>
+        </div>
+        <div class="text-base md:text-lg font-bold text-rose-600">${rupiah(operasional)}</div>
+      </div>
+      <div class="bg-white p-4 rounded-xl border hover:shadow-md transition">
         <div class="flex items-center justify-between mb-2">
           <div class="text-xs text-gray-500 font-medium">Saldo Bersih</div>
           <div class="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center"><i data-lucide="wallet" class="w-4 h-4 text-orange-600"></i></div>
         </div>
-        <div class="text-xl font-bold text-orange-600">${rupiah(pemasukan - pengeluaran)}</div>
+        <div class="text-base md:text-lg font-bold ${(pemasukan-totalPengeluaran) >= 0 ? 'text-orange-600' : 'text-rose-600'}">${rupiah(pemasukan - totalPengeluaran)}</div>
       </div>
     </div>
-
     <div class="bg-white rounded-xl border p-5 md:p-6">
-      <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-5">
-        <div>
-          <h2 class="font-bold text-lg flex items-center gap-2"><i data-lucide="bar-chart-3" class="w-5 h-5 text-orange-600"></i> Grafik Keuangan</h2>
-          <p class="text-xs text-gray-500 mt-0.5">Pemasukan vs pengeluaran per bulan</p>
+      <div class="flex flex-col gap-3 mb-5">
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+          <div>
+            <h2 class="font-bold text-lg flex items-center gap-2"><i data-lucide="bar-chart-3" class="w-5 h-5 text-orange-600"></i> Grafik Keuangan</h2>
+            <p class="text-xs text-gray-500 mt-0.5">Periode: <b>${periodeLabel}</b></p>
+          </div>
+          <div id="keuangan-chart-type" class="flex items-center bg-gray-100 rounded-lg p-0.5 self-start">
+            <button data-type="bar" onclick="setKeuanganChartType('bar')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition ${keuanganChartType==='bar' ? 'bg-orange-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'}" title="Diagram Batang"><i data-lucide="bar-chart-3" class="w-4 h-4"></i></button>
+            <button data-type="line" onclick="setKeuanganChartType('line')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition ${keuanganChartType==='line' ? 'bg-orange-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'}" title="Diagram Garis"><i data-lucide="line-chart" class="w-4 h-4"></i></button>
+          </div>
         </div>
-        <div class="flex items-center gap-2 flex-wrap">
-          <div class="flex items-center bg-gray-100 rounded-lg p-0.5">
-            ${periods.map(p => `<button onclick="setKeuanganPeriod('${p.id}')" class="px-3 py-1.5 rounded-md text-xs font-semibold transition ${keuanganPeriod===p.id ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-600 hover:bg-gray-50'}">${p.label}</button>`).join('')}
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="flex items-center bg-gray-100 rounded-lg p-0.5 flex-wrap">
+            ${periods.map(p => `<button onclick="setKeuanganMode('${p.id}')" class="px-3 py-1.5 rounded-md text-xs font-semibold transition ${keuanganMode===p.id ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-600 hover:bg-gray-50'}">${p.label}</button>`).join('')}
           </div>
-          <div id="keuangan-chart-type" class="flex items-center bg-gray-100 rounded-lg p-0.5">
-            <button data-type="bar" onclick="setKeuanganChartType('bar')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition ${keuanganChartType==='bar' ? 'bg-orange-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'}" title="Diagram Batang">
-              <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
-            </button>
-            <button data-type="line" onclick="setKeuanganChartType('line')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition ${keuanganChartType==='line' ? 'bg-orange-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'}" title="Diagram Garis">
-              <i data-lucide="line-chart" class="w-4 h-4"></i>
-            </button>
-          </div>
+          ${keuanganMode === 'bulan' ? `
+          <div class="flex items-center gap-2">
+            <select onchange="setKeuanganBulan(this.value)" class="border rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-orange-500">
+              ${monthOptions}
+            </select>
+            <select onchange="setKeuanganTahun(this.value)" class="border rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-orange-500">
+              ${yearOptions}
+            </select>
+          </div>` : ''}
         </div>
       </div>
-
       <div class="grid grid-cols-2 gap-3 mb-4 text-xs">
         <div class="bg-emerald-50 border border-emerald-100 rounded-lg p-2.5">
           <div class="text-emerald-700 font-semibold mb-0.5">Pemasukan Periode</div>
@@ -1884,14 +1869,8 @@ function renderLaporanKeuangan() {
           <div class="text-rose-800 font-bold text-sm">${rupiah(totalPeriodeKeluar)}</div>
         </div>
       </div>
-
-      <div style="height: 340px; position: relative;">
-        <canvas id="keuangan-chart"></canvas>
-      </div>
-
-      <div class="mt-4 text-xs text-gray-400 text-center">
-        💡 Klik ikon batang / garis di kanan atas untuk mengubah tampilan grafik
-      </div>
+      <div style="height: 340px; position: relative;"><canvas id="keuangan-chart"></canvas></div>
+      <div class="mt-4 text-xs text-gray-400 text-center">💡 Klik ikon batang / garis di kanan atas untuk mengubah tampilan grafik</div>
     </div>
   </div>`;
 }
@@ -1902,7 +1881,6 @@ function renderSiswa() {
   const filtered = DB.siswa.filter(s => !q || (s.nama||'').toLowerCase().includes(q) || (s.kelas||'').toLowerCase().includes(q) || (s.nama_orang_tua||'').toLowerCase().includes(q) || (s.no_wa||'').includes(q) || (s.mapel||'').toLowerCase().includes(q));
   const jadwalCount = {};
   DB.jadwal.forEach(j => { jadwalCount[j.siswa_id] = (jadwalCount[j.siswa_id] || 0) + 1; });
-
   return `<div>
     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
       <div><h1 class="text-2xl font-bold">Daftar Siswa</h1><p class="text-gray-500 text-sm">${filtered.length} dari ${DB.siswa.length} siswa</p></div>
@@ -1971,8 +1949,7 @@ async function simpanSiswa(e) {
 
 function openSiswaForm(id) {
   const editing = id ? DB.siswa.find(x=>x.id===id) : null;
-  const body = `<form data-id="${id||''}">
-    <div class="space-y-3">
+  const body = `<form data-id="${id||''}"><div class="space-y-3">
       <div><label class="text-sm">Nama Siswa *</label><input name="nama" required value="${escapeHtml(editing?.nama||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
       <div class="grid grid-cols-2 gap-3">
         <div><label class="text-sm">Kelas</label><input name="kelas" value="${escapeHtml(editing?.kelas||'')}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
@@ -1992,7 +1969,6 @@ function renderTentor() {
   const filtered = DB.tentor.filter(t => !q || (t.nama||'').toLowerCase().includes(q) || (t.mapel||'').toLowerCase().includes(q) || (t.email||'').toLowerCase().includes(q) || (t.no_wa||'').includes(q));
   const siswaCount = {};
   DB.siswa.forEach(s => { if (s.tentor_id) siswaCount[s.tentor_id] = (siswaCount[s.tentor_id] || 0) + 1; });
-
   return `<div>
     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
       <div><h1 class="text-2xl font-bold">Daftar Tentor</h1><p class="text-gray-500 text-sm">${filtered.length} dari ${DB.tentor.length} tentor</p></div>
@@ -2082,13 +2058,11 @@ function renderJadwal() {
   let filteredJadwal = [];
   if (role === 'admin') filteredJadwal = DB.jadwal;
   else if (role === 'tentor' && myTentorId) filteredJadwal = DB.jadwal.filter(j => j.tentor_id === myTentorId);
-
   const q = (searchSiswa || '').toLowerCase();
   if (q) {
     const matchingSiswaIds = DB.siswa.filter(s => (s.nama||'').toLowerCase().includes(q)).map(s => s.id);
     filteredJadwal = filteredJadwal.filter(j => matchingSiswaIds.includes(j.siswa_id));
   }
-
   const grouped = {};
   filteredJadwal.forEach(j => { if (!grouped[j.siswa_id]) grouped[j.siswa_id] = []; grouped[j.siswa_id].push(j); });
   Object.keys(grouped).forEach(sid => {
@@ -2104,7 +2078,6 @@ function renderJadwal() {
     return nameA.localeCompare(nameB);
   });
   const today = todayISO();
-
   return `<div>
     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
       <div><h1 class="text-2xl font-bold">Jadwal Les</h1><p class="text-gray-500 text-sm">${filteredJadwal.length} sesi untuk ${sortedSiswaIds.length} siswa</p></div>
@@ -2210,7 +2183,6 @@ function openJadwalForm(id) {
   const role = DB.profile?.role || 'tentor';
   const myTentorId = getMyTentorId();
   const isTentor = role === 'tentor';
-
   const body = `<form data-id="${id||''}"><div class="space-y-3">
     <div><label class="text-sm">Siswa</label>
       <select name="siswa_id" required class="w-full border rounded-lg px-3 py-2 mt-1">
@@ -2219,14 +2191,11 @@ function openJadwalForm(id) {
     </div>
     ${isTentor
       ? `<input type="hidden" name="tentor_id" value="${myTentorId||''}" />
-         <div><label class="text-sm">Tentor</label>
-           <input type="text" disabled value="${escapeHtml(DB.tentor.find(t=>t.id===myTentorId)?.nama || '-')}" class="w-full border rounded-lg px-3 py-2 mt-1 bg-gray-100 text-gray-600" />
-         </div>`
+         <div><label class="text-sm">Tentor</label><input type="text" disabled value="${escapeHtml(DB.tentor.find(t=>t.id===myTentorId)?.nama || '-')}" class="w-full border rounded-lg px-3 py-2 mt-1 bg-gray-100 text-gray-600" /></div>`
       : `<div><label class="text-sm">Tentor</label>
            <select name="tentor_id" required class="w-full border rounded-lg px-3 py-2 mt-1">
              ${DB.tentor.map(t=>`<option value="${t.id}" ${editing?.tentor_id===t.id?'selected':''}>${escapeHtml(t.nama)}</option>`).join('')}
-           </select>
-         </div>`}
+           </select></div>`}
     <div><label class="text-sm">Tanggal Les *</label><input type="date" name="tanggal" required value="${editing?.tanggal || todayISO()}" class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
     <div class="grid grid-cols-2 gap-2">
       <div><label class="text-sm">Jam Mulai</label><input type="time" name="jam_mulai" value="${editing?.jam_mulai ? formatJam(editing.jam_mulai) : '15:00'}" required class="w-full border rounded-lg px-3 py-2 mt-1" /></div>
