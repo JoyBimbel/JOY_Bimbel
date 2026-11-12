@@ -303,6 +303,9 @@ let filterInvoiceJenis = 'all';
 let searchLaporan = '';
 let filterLaporanTentor = 'all';
 let expandedJadwal = {};
+let keuanganChartType = 'bar';
+let keuanganPeriod = '6';
+let keuanganChartInstance = null;
 
 function escapeHtml(s) { return String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function formatWa(n) { n = String(n||'').replace(/\D/g,''); if (n.startsWith('0')) return '62' + n.slice(1); return n.startsWith('62')?n:'62'+n; }
@@ -1462,7 +1465,7 @@ function onRecipientChange(untukId) {
       const siswa = DB.siswa.find(s => s.id === j.siswa_id);
       if (!siswa) return;
       const laporan = DB.laporan.find(l => l.tanggal === j.tanggal && l.siswa_id === j.siswa_id && l.tentor_id === untukId);
-      const materi = laporan && laporan.topik ? laporan.topik : (siswa.mapel || tentor.mapel || 'Les Privat');
+      const materi = laporan && l.topik ? laporan.topik : (siswa.mapel || tentor.mapel || 'Les Privat');
       itemsToInsert.push({ tanggal: j.tanggal, siswa_id: j.siswa_id, deskripsi: materi, qty: 1, harga: tentor.tarif });
       addedCount++;
     });
@@ -1470,7 +1473,7 @@ function onRecipientChange(untukId) {
       const siswa = DB.siswa.find(s => s.id === j.siswa_id);
       if (!siswa) return;
       const laporan = DB.laporan.find(l => l.siswa_id === j.siswa_id && l.tentor_id === untukId);
-      const materi = laporan && laporan.topik ? laporan.topik : (siswa.mapel || tentor.mapel || 'Les Privat');
+      const materi = laporan && l.topik ? laporan.topik : (siswa.mapel || tentor.mapel || 'Les Privat');
       itemsToInsert.push({ tanggal: today, siswa_id: j.siswa_id, deskripsi: materi, qty: 1, harga: tentor.tarif });
       addedCount++;
     });
@@ -1685,16 +1688,210 @@ function printInvoice(id) {
   setTimeout(() => { window.print(); setTimeout(() => { document.getElementById('print-area').innerHTML = ''; }, 1000); }, 100);
 }
 
+// ===== GRAFIK KEUANGAN =====
+function getMonthlyFinanceData(period) {
+  const now = new Date();
+  let monthsBack = 6;
+  if (period === '6') monthsBack = 6;
+  else if (period === '12') monthsBack = 12;
+  else if (period === 'tahun-ini') monthsBack = now.getMonth() + 1;
+
+  const result = { labels: [], pemasukan: [], pengeluaran: [] };
+  for (let i = monthsBack - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const key = `${year}-${month}`;
+    const label = NAMA_BULAN_SINGKAT[d.getMonth()] + ' ' + String(year).slice(-2);
+    const masuk = DB.invoice.filter(inv => inv.jenis === 'siswa' && inv.status === 'lunas' && (inv.tanggal || '').startsWith(key)).reduce((a,b) => a + Number(b.total || 0), 0);
+    const keluar = DB.invoice.filter(inv => inv.jenis === 'tentor' && inv.status === 'lunas' && (inv.tanggal || '').startsWith(key)).reduce((a,b) => a + Number(b.total || 0), 0);
+    result.labels.push(label);
+    result.pemasukan.push(masuk);
+    result.pengeluaran.push(keluar);
+  }
+  return result;
+}
+
+function setKeuanganChartType(type) {
+  keuanganChartType = type;
+  document.querySelectorAll('#keuangan-chart-type [data-type]').forEach(btn => {
+    const active = btn.dataset.type === type;
+    btn.className = active
+      ? 'px-3 py-1.5 rounded-lg text-xs font-semibold transition bg-orange-600 text-white shadow-sm'
+      : 'px-3 py-1.5 rounded-lg text-xs font-semibold transition text-gray-600 hover:bg-gray-50';
+  });
+  initKeuanganChart();
+}
+
+function setKeuanganPeriod(p) {
+  keuanganPeriod = p;
+  renderPage();
+}
+
+function initKeuanganChart() {
+  const canvas = document.getElementById('keuangan-chart');
+  if (!canvas || typeof Chart === 'undefined') return;
+  if (keuanganChartInstance) { try { keuanganChartInstance.destroy(); } catch(e) {} keuanganChartInstance = null; }
+
+  const data = getMonthlyFinanceData(keuanganPeriod);
+  const isLine = keuanganChartType === 'line';
+
+  keuanganChartInstance = new Chart(canvas, {
+    type: keuanganChartType,
+    data: {
+      labels: data.labels,
+      datasets: [
+        {
+          label: 'Pemasukan',
+          data: data.pemasukan,
+          backgroundColor: isLine ? 'rgba(16, 185, 129, 0.08)' : 'rgba(16, 185, 129, 0.85)',
+          borderColor: '#10b981',
+          borderWidth: isLine ? 2.5 : 0,
+          borderRadius: isLine ? 0 : 8,
+          tension: 0.35,
+          fill: isLine,
+          pointBackgroundColor: '#10b981',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          pointRadius: isLine ? 4 : 0,
+          pointHoverRadius: isLine ? 6 : 0
+        },
+        {
+          label: 'Pengeluaran',
+          data: data.pengeluaran,
+          backgroundColor: isLine ? 'rgba(244, 63, 94, 0.08)' : 'rgba(244, 63, 94, 0.85)',
+          borderColor: '#f43f5e',
+          borderWidth: isLine ? 2.5 : 0,
+          borderRadius: isLine ? 0 : 8,
+          tension: 0.35,
+          fill: isLine,
+          pointBackgroundColor: '#f43f5e',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          pointRadius: isLine ? 4 : 0,
+          pointHoverRadius: isLine ? 6 : 0
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top', labels: { usePointStyle: true, padding: 15, font: { size: 12, weight: '600' } } },
+        tooltip: {
+          backgroundColor: 'rgba(15, 23, 42, 0.95)',
+          titleFont: { size: 13, weight: 'bold' },
+          bodyFont: { size: 12 },
+          padding: 12,
+          cornerRadius: 8,
+          callbacks: { label: (ctx) => ctx.dataset.label + ': ' + rupiah(ctx.parsed.y) }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: (v) => {
+              if (v >= 1000000) return 'Rp' + (v/1000000).toFixed(1) + 'jt';
+              if (v >= 1000) return 'Rp' + (v/1000).toFixed(0) + 'rb';
+              return 'Rp' + v;
+            },
+            font: { size: 11 }
+          },
+          grid: { color: 'rgba(0,0,0,0.05)' }
+        },
+        x: { grid: { display: false }, ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+}
+
 function renderLaporanKeuangan() {
   const inv = DB.invoice;
   const pemasukan = inv.filter(i=>i.jenis==='siswa' && i.status==='lunas').reduce((a,b)=>a+b.total,0);
   const pengeluaran = inv.filter(i=>i.jenis==='tentor' && i.status==='lunas').reduce((a,b)=>a+b.total,0);
+  const periodeData = getMonthlyFinanceData(keuanganPeriod);
+  const totalPeriodeMasuk = periodeData.pemasukan.reduce((a,b)=>a+b,0);
+  const totalPeriodeKeluar = periodeData.pengeluaran.reduce((a,b)=>a+b,0);
+
+  setTimeout(initKeuanganChart, 80);
+
+  const periods = [
+    { id: '6', label: '6 Bulan' },
+    { id: '12', label: '12 Bulan' },
+    { id: 'tahun-ini', label: 'Tahun Ini' }
+  ];
+
   return `<div>
-    <h1 class="text-2xl font-bold mb-4">Laporan Keuangan</h1>
+    <div class="mb-4">
+      <h1 class="text-2xl font-bold">Laporan Keuangan</h1>
+      <p class="text-gray-500 text-sm">Ringkasan & grafik pemasukan dan pengeluaran</p>
+    </div>
+
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-      <div class="bg-white p-4 rounded border"><div class="text-xs text-gray-500 mb-1">Total Pemasukan Lunas</div><div class="text-xl font-bold text-emerald-600">${rupiah(pemasukan)}</div></div>
-      <div class="bg-white p-4 rounded border"><div class="text-xs text-gray-500 mb-1">Total Gaji Dibayar</div><div class="text-xl font-bold text-rose-600">${rupiah(pengeluaran)}</div></div>
-      <div class="bg-white p-4 rounded border"><div class="text-xs text-gray-500 mb-1">Saldo Bersih</div><div class="text-xl font-bold text-orange-600">${rupiah(pemasukan - pengeluaran)}</div></div>
+      <div class="bg-white p-5 rounded-xl border hover:shadow-md transition">
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-xs text-gray-500 font-medium">Total Pemasukan Lunas</div>
+          <div class="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center"><i data-lucide="trending-up" class="w-4 h-4 text-emerald-600"></i></div>
+        </div>
+        <div class="text-xl font-bold text-emerald-600">${rupiah(pemasukan)}</div>
+      </div>
+      <div class="bg-white p-5 rounded-xl border hover:shadow-md transition">
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-xs text-gray-500 font-medium">Total Gaji Dibayar</div>
+          <div class="w-8 h-8 bg-rose-50 rounded-lg flex items-center justify-center"><i data-lucide="trending-down" class="w-4 h-4 text-rose-600"></i></div>
+        </div>
+        <div class="text-xl font-bold text-rose-600">${rupiah(pengeluaran)}</div>
+      </div>
+      <div class="bg-white p-5 rounded-xl border hover:shadow-md transition">
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-xs text-gray-500 font-medium">Saldo Bersih</div>
+          <div class="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center"><i data-lucide="wallet" class="w-4 h-4 text-orange-600"></i></div>
+        </div>
+        <div class="text-xl font-bold text-orange-600">${rupiah(pemasukan - pengeluaran)}</div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl border p-5 md:p-6">
+      <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-5">
+        <div>
+          <h2 class="font-bold text-lg flex items-center gap-2"><i data-lucide="bar-chart-3" class="w-5 h-5 text-orange-600"></i> Grafik Keuangan</h2>
+          <p class="text-xs text-gray-500 mt-0.5">Pemasukan vs pengeluaran per bulan</p>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <div class="flex items-center bg-gray-100 rounded-lg p-0.5">
+            ${periods.map(p => `<button onclick="setKeuanganPeriod('${p.id}')" class="px-3 py-1.5 rounded-md text-xs font-semibold transition ${keuanganPeriod===p.id ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-600 hover:bg-gray-50'}">${p.label}</button>`).join('')}
+          </div>
+          <div id="keuangan-chart-type" class="flex items-center bg-gray-100 rounded-lg p-0.5">
+            <button data-type="bar" onclick="setKeuanganChartType('bar')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition ${keuanganChartType==='bar' ? 'bg-orange-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'}" title="Diagram Batang">
+              <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+            </button>
+            <button data-type="line" onclick="setKeuanganChartType('line')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition ${keuanganChartType==='line' ? 'bg-orange-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'}" title="Diagram Garis">
+              <i data-lucide="line-chart" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 mb-4 text-xs">
+        <div class="bg-emerald-50 border border-emerald-100 rounded-lg p-2.5">
+          <div class="text-emerald-700 font-semibold mb-0.5">Pemasukan Periode</div>
+          <div class="text-emerald-800 font-bold text-sm">${rupiah(totalPeriodeMasuk)}</div>
+        </div>
+        <div class="bg-rose-50 border border-rose-100 rounded-lg p-2.5">
+          <div class="text-rose-700 font-semibold mb-0.5">Pengeluaran Periode</div>
+          <div class="text-rose-800 font-bold text-sm">${rupiah(totalPeriodeKeluar)}</div>
+        </div>
+      </div>
+
+      <div style="height: 340px; position: relative;">
+        <canvas id="keuangan-chart"></canvas>
+      </div>
+
+      <div class="mt-4 text-xs text-gray-400 text-center">
+        💡 Klik ikon batang / garis di kanan atas untuk mengubah tampilan grafik
+      </div>
     </div>
   </div>`;
 }
