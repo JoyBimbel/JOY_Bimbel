@@ -2,9 +2,16 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Joy Bimbel</title>
 <link rel="icon" id="favicon" href="" />
+<meta name="theme-color" content="#ea580c" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Joy Bimbel" />
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" id="apple-touch-icon" href="" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
   const supabaseUrl = 'https://jsgtihamclghgurhvwwi.supabase.co';
@@ -89,6 +96,11 @@
     #print-area { display: block !important; position: absolute; left: 0; top: 0; width: 100%; padding: 0; margin: 0; background: white; color: black; }
     @page { margin: 1cm; }
   }
+  /* Safe area iPhone notch */
+  @supports (padding: env(safe-area-inset-top)) {
+    body.standalone #mobile-topbar { padding-top: env(safe-area-inset-top); }
+    body.standalone #sidebar { top: calc(env(safe-area-inset-top) + 0.75rem); }
+  }
 </style>
 </head>
 <body class="bg-slate-100">
@@ -165,6 +177,10 @@
     <div class="px-4 py-2.5 border-b border-gray-100">
       <span id="profile-menu-role" class="px-2 py-1 text-xs rounded font-semibold bg-orange-100 text-orange-700">-</span>
     </div>
+    <button id="install-btn" onclick="installPWA()" class="hidden w-full flex items-center gap-2 px-4 py-3 text-emerald-600 hover:bg-emerald-50 font-medium transition border-b border-gray-100">
+      <i data-lucide="download" class="w-4 h-4"></i>
+      <span class="text-sm">Install sebagai App</span>
+    </button>
     <button onclick="logout()" class="w-full flex items-center gap-2 px-4 py-3 text-red-600 hover:bg-red-50 font-medium transition">
       <i data-lucide="log-out" class="w-4 h-4"></i><span class="text-sm">Logout</span>
     </button>
@@ -214,6 +230,10 @@ let keuanganMode = '6';
 let keuanganBulan = new Date().getMonth() + 1;
 let keuanganTahun = new Date().getFullYear();
 let keuanganChartInstance = null;
+let rekapTab = 'siswa';
+let rekapSearch = '';
+let rekapOnlyOutstanding = false;
+let deferredInstallPrompt = null;
 
 function escapeHtml(s) { return String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function formatWa(n) { n = String(n||'').replace(/\D/g,''); if (n.startsWith('0')) return '62' + n.slice(1); return n.startsWith('62')?n:'62'+n; }
@@ -360,6 +380,8 @@ function applyLogo() {
   });
   const favicon = document.getElementById('favicon');
   if (favicon) favicon.href = LOGO_URL;
+  const appleIcon = document.getElementById('apple-touch-icon');
+  if (appleIcon) appleIcon.href = LOGO_URL;
 }
 
 async function checkSession() {
@@ -478,6 +500,7 @@ function renderNav() {
     {id:'tentor', label:'Tentor', icon:'user-cog'}, {id:'jadwal', label:'Jadwal', icon:'calendar'},
     {id:'laporan_tentor', label:'Laporan Mengajar', icon:'file-check'},
     {id:'invoice', label:'Invoice & Slip Gaji', icon:'file-text'}, {id:'keuangan', label:'Laporan Keuangan', icon:'bar-chart-3'},
+    {id:'rekap_keuangan', label:'Rekap Siswa & Tentor', icon:'receipt-text'},
     {id:'akun', label:'Akun & Akses', icon:'shield'}, {id:'pengaturan', label:'Pengaturan Website', icon:'settings'},
     {id:'backup', label:'Backup Data', icon:'database'}
   ];
@@ -506,6 +529,7 @@ function renderNav() {
 function navigate(page) {
   currentPage = page;
   searchSiswa = ''; searchTentor = ''; searchInvoice = ''; searchLaporan = '';
+  rekapSearch = '';
   filterInvoiceStatus = 'all'; filterInvoiceJenis = 'all'; filterLaporanTentor = 'all';
   expandedJadwal = {};
   renderNav(); renderPage();
@@ -553,7 +577,13 @@ document.getElementById('modal-body').addEventListener('submit', (e) => { e.prev
 function renderPage(silent = false) {
   const content = document.getElementById('content');
   if (!content) return;
-  const pages = { dashboard: renderDashboard, siswa: () => renderSiswa(), tentor: () => renderTentor(), jadwal: () => renderJadwal(), invoice: () => renderInvoice(), keuangan: () => renderLaporanKeuangan(), akun: () => renderAkun(), pengaturan: () => renderPengaturan(), backup: () => renderBackup(), laporan_tentor: () => renderLaporanTentor() };
+  const pages = {
+    dashboard: renderDashboard, siswa: () => renderSiswa(), tentor: () => renderTentor(),
+    jadwal: () => renderJadwal(), invoice: () => renderInvoice(),
+    keuangan: () => renderLaporanKeuangan(), rekap_keuangan: () => renderRekapKeuangan(),
+    akun: () => renderAkun(), pengaturan: () => renderPengaturan(),
+    backup: () => renderBackup(), laporan_tentor: () => renderLaporanTentor()
+  };
   content.innerHTML = (pages[currentPage] || renderDashboard)();
   if (typeof lucide !== 'undefined') lucide.createIcons();
   if (!silent) {
@@ -1644,6 +1674,249 @@ function printInvoice(id) {
   setTimeout(() => { window.print(); setTimeout(() => { document.getElementById('print-area').innerHTML = ''; }, 1000); }, 100);
 }
 
+// ===== REKAP KEUANGAN PER SISWA & TENTOR =====
+function setRekapTab(t) { rekapTab = t; renderPage(); }
+function toggleRekapOutstanding(v) { rekapOnlyOutstanding = v; renderPage(); }
+function doRekapSearch(v, inputId) {
+  rekapSearch = v;
+  renderPage(true);
+  const el = document.getElementById(inputId);
+  if (el) { el.focus(); try { const len = el.value.length; el.setSelectionRange(len, len); } catch(e) {} }
+}
+
+function getRekapSiswaData() {
+  return DB.siswa.map(s => {
+    const invList = DB.invoice.filter(i => i.jenis === 'siswa' && i.untuk_id === s.id);
+    const totalTagihan = invList.reduce((a,b) => a + Number(b.total || 0), 0);
+    const totalLunas = invList.filter(i => i.status === 'lunas').reduce((a,b) => a + Number(b.total || 0), 0);
+    const outstanding = totalTagihan - totalLunas;
+    const lastPaid = invList.filter(i => i.status === 'lunas' && i.tanggal).sort((a,b) => (b.tanggal||'').localeCompare(a.tanggal||''))[0];
+    return {
+      id: s.id, nama: s.nama, kelas: s.kelas, ortu: s.nama_orang_tua, noWa: s.no_wa,
+      totalTagihan, totalLunas, outstanding,
+      lastPaid: lastPaid?.tanggal || null,
+      jumlahInvoice: invList.length
+    };
+  });
+}
+
+function getRekapTentorData() {
+  return DB.tentor.map(t => {
+    const invList = DB.invoice.filter(i => i.jenis === 'tentor' && i.untuk_id === t.id);
+    const totalGaji = invList.reduce((a,b) => a + Number(b.total || 0), 0);
+    const totalLunas = invList.filter(i => i.status === 'lunas').reduce((a,b) => a + Number(b.total || 0), 0);
+    const outstanding = totalGaji - totalLunas;
+    const lastPaid = invList.filter(i => i.status === 'lunas' && i.tanggal).sort((a,b) => (b.tanggal||'').localeCompare(a.tanggal||''))[0];
+    return {
+      id: t.id, nama: t.nama, mapel: t.mapel, noWa: t.no_wa,
+      totalTagihan: totalGaji, totalLunas, outstanding,
+      lastPaid: lastPaid?.tanggal || null,
+      jumlahInvoice: invList.length
+    };
+  });
+}
+
+function renderRekapKeuangan() {
+  if (DB.profile?.role !== 'admin') {
+    return `<div class="bg-white border rounded-xl p-8 text-center">
+      <i data-lucide="shield-alert" class="w-12 h-12 text-rose-500 mx-auto mb-2"></i>
+      <p class="text-gray-600">Halaman ini hanya dapat diakses admin.</p>
+    </div>`;
+  }
+
+  const q = (rekapSearch || '').toLowerCase();
+  const isSiswa = rekapTab === 'siswa';
+  const rawData = isSiswa ? getRekapSiswaData() : getRekapTentorData();
+
+  // Stats global (unfiltered)
+  const totalTagihanAll = rawData.reduce((a,b) => a + b.totalTagihan, 0);
+  const totalLunasAll = rawData.reduce((a,b) => a + b.totalLunas, 0);
+  const totalOutstandingAll = rawData.reduce((a,b) => a + b.outstanding, 0);
+  const countOutstanding = rawData.filter(r => r.outstanding > 0).length;
+
+  let filtered = rawData.filter(r => {
+    if (!q) return true;
+    return (r.nama||'').toLowerCase().includes(q) || ((r.ortu||r.mapel||'')).toLowerCase().includes(q);
+  });
+  if (rekapOnlyOutstanding) filtered = filtered.filter(r => r.outstanding > 0);
+  filtered.sort((a,b) => b.outstanding - a.outstanding);
+
+  const tabBtnCls = (active) => active
+    ? 'px-4 py-2 rounded-lg text-sm font-semibold bg-orange-600 text-white shadow-sm'
+    : 'px-4 py-2 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-100';
+
+  return `<div>
+    <div class="mb-4">
+      <h1 class="text-2xl font-bold">Rekap Keuangan</h1>
+      <p class="text-gray-500 text-sm">Ringkasan total tagihan, pembayaran & outstanding</p>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
+      <div class="bg-white p-4 rounded-xl border hover:shadow-md transition">
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-xs text-gray-500 font-medium">Total ${isSiswa?'Tagihan':'Gaji'}</div>
+          <div class="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center"><i data-lucide="file-text" class="w-4 h-4 text-blue-600"></i></div>
+        </div>
+        <div class="text-sm md:text-base font-bold text-blue-600 truncate">${rupiah(totalTagihanAll)}</div>
+      </div>
+      <div class="bg-white p-4 rounded-xl border hover:shadow-md transition">
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-xs text-gray-500 font-medium">Total ${isSiswa?'Dibayar':'Digaji'}</div>
+          <div class="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-600"></i></div>
+        </div>
+        <div class="text-sm md:text-base font-bold text-emerald-600 truncate">${rupiah(totalLunasAll)}</div>
+      </div>
+      <div class="bg-white p-4 rounded-xl border hover:shadow-md transition">
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-xs text-gray-500 font-medium">Outstanding</div>
+          <div class="w-8 h-8 bg-rose-50 rounded-lg flex items-center justify-center"><i data-lucide="alert-circle" class="w-4 h-4 text-rose-600"></i></div>
+        </div>
+        <div class="text-sm md:text-base font-bold text-rose-600 truncate">${rupiah(totalOutstandingAll)}</div>
+      </div>
+      <div class="bg-white p-4 rounded-xl border hover:shadow-md transition">
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-xs text-gray-500 font-medium">Ada Outstanding</div>
+          <div class="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center"><i data-lucide="users" class="w-4 h-4 text-amber-600"></i></div>
+        </div>
+        <div class="text-sm md:text-base font-bold text-amber-600">${countOutstanding} ${isSiswa?'siswa':'tentor'}</div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl border p-3 md:p-4 mb-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+      <div class="flex items-center bg-gray-100 rounded-lg p-0.5">
+        <button onclick="setRekapTab('siswa')" class="${tabBtnCls(isSiswa)}">👨‍👩‍👧 Per Siswa</button>
+        <button onclick="setRekapTab('tentor')" class="${tabBtnCls(!isSiswa)}">👨‍🏫 Per Tentor</button>
+      </div>
+      <div class="flex-1 relative">
+        <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+        <input id="search-rekap" oninput="doRekapSearch(this.value, 'search-rekap')" value="${escapeHtml(rekapSearch)}" placeholder="Cari nama..." class="w-full border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
+      </div>
+      <label class="flex items-center gap-2 px-3 py-2 bg-rose-50 border border-rose-200 rounded-lg cursor-pointer hover:bg-rose-100 transition">
+        <input type="checkbox" ${rekapOnlyOutstanding?'checked':''} onchange="toggleRekapOutstanding(this.checked)" class="w-4 h-4 accent-rose-600" />
+        <span class="text-sm font-medium text-rose-700 whitespace-nowrap">Hanya Outstanding</span>
+      </label>
+    </div>
+
+    ${filtered.length === 0 ? `<div class="text-center text-gray-400 py-12 bg-white border rounded-xl">
+      <i data-lucide="search" class="w-10 h-10 mx-auto mb-2 text-gray-300"></i>
+      <p>${rekapOnlyOutstanding ? 'Tidak ada ' + (isSiswa?'siswa':'tentor') + ' dengan outstanding.' : 'Tidak ada data yang cocok.'}</p>
+    </div>` :
+    `<>
+      <div class="md:hidden space-y-3">
+        ${filtered.map(r => `
+          <div class="bg-white rounded-xl border p-4 cursor-pointer hover:shadow-md transition" onclick="openRekapDetail('${r.id}', '${rekapTab}')">
+            <div class="flex justify-between items-start gap-2 mb-2">
+              <div class="flex-1 min-w-0">
+                <div class="font-bold text-base truncate">${escapeHtml(r.nama)}</div>
+                <div class="text-xs text-gray-500 truncate">${isSiswa ? (r.kelas ? 'Kelas ' + escapeHtml(r.kelas) : '-') : escapeHtml(r.mapel||'-')}</div>
+              </div>
+              ${r.outstanding > 0 ? `<span class="text-xs px-2 py-1 rounded-full flex-shrink-0 bg-rose-100 text-rose-700 font-semibold">Belum Lunas</span>` : `<span class="text-xs px-2 py-1 rounded-full flex-shrink-0 bg-emerald-100 text-emerald-700 font-semibold">✓ Lunas</span>`}
+            </div>
+            <div class="text-sm space-y-1 pt-2 border-t">
+              <div class="flex justify-between"><span class="text-gray-500">Total ${isSiswa?'Tagihan':'Gaji'}:</span><span class="font-medium">${rupiah(r.totalTagihan)}</span></div>
+              <div class="flex justify-between"><span class="text-gray-500">${isSiswa?'Sudah Dibayar':'Sudah Digaji'}:</span><span class="font-medium text-emerald-600">${rupiah(r.totalLunas)}</span></div>
+              <div class="flex justify-between font-semibold"><span class="${r.outstanding>0?'text-rose-700':'text-gray-600'}">Outstanding:</span><span class="${r.outstanding>0?'text-rose-700':'text-emerald-600'}">${rupiah(r.outstanding)}</span></div>
+              ${r.lastPaid ? `<div class="flex justify-between text-xs"><span class="text-gray-400">Terakhir bayar:</span><span class="text-gray-500">${formatTanggal(r.lastPaid)}</span></div>` : ''}
+            </div>
+          </div>`).join('')}
+      </div>
+      <div class="hidden md:block bg-white rounded-xl border overflow-hidden">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 text-gray-600"><tr>
+            <th class="text-left px-4 py-3">Nama</th>
+            <th class="text-left px-4 py-3">${isSiswa?'Kelas':'Mapel'}</th>
+            <th class="text-right px-4 py-3">Total ${isSiswa?'Tagihan':'Gaji'}</th>
+            <th class="text-right px-4 py-3">${isSiswa?'Dibayar':'Digaji'}</th>
+            <th class="text-right px-4 py-3">Outstanding</th>
+            <th class="text-left px-4 py-3">Terakhir Bayar</th>
+            <th class="text-right px-4 py-3">Aksi</th>
+          </tr></thead>
+          <tbody>${filtered.map(r => `
+            <tr class="border-t hover:bg-gray-50">
+              <td class="px-4 py-3 font-medium">${escapeHtml(r.nama)}</td>
+              <td class="px-4 py-3 text-xs text-gray-600">${isSiswa ? escapeHtml(r.kelas||'-') : escapeHtml(r.mapel||'-')}</td>
+              <td class="px-4 py-3 text-right">${rupiah(r.totalTagihan)}</td>
+              <td class="px-4 py-3 text-right text-emerald-600 font-medium">${rupiah(r.totalLunas)}</td>
+              <td class="px-4 py-3 text-right ${r.outstanding>0?'text-rose-600 font-bold':'text-gray-400'}">${rupiah(r.outstanding)}</td>
+              <td class="px-4 py-3 text-xs text-gray-500">${r.lastPaid ? formatTanggal(r.lastPaid) : '-'}</td>
+              <td class="px-4 py-3 text-right whitespace-nowrap">
+                <button onclick="openRekapDetail('${r.id}', '${rekapTab}')" class="text-orange-600 hover:bg-orange-50 px-2 py-1 rounded text-xs border border-orange-200 font-semibold">
+                  <i data-lucide="eye" class="w-3.5 h-3.5 inline-block align-middle mr-0.5"></i> Detail
+                </button>
+              </td>
+            </tr>`).join('')}</tbody>
+        </table>
+      </div>
+    </>`}
+  </div>`;
+}
+
+function openRekapDetail(id, tab) {
+  const isSiswa = tab === 'siswa';
+  const person = isSiswa ? DB.siswa.find(s => s.id === id) : DB.tentor.find(t => t.id === id);
+  if (!person) return;
+  const invList = DB.invoice.filter(i => i.jenis === tab && i.untuk_id === id).sort((a,b) => (b.tanggal||'').localeCompare(a.tanggal||''));
+  const totalTagihan = invList.reduce((a,b) => a + Number(b.total || 0), 0);
+  const totalLunas = invList.filter(i => i.status === 'lunas').reduce((a,b) => a + Number(b.total || 0), 0);
+  const outstanding = totalTagihan - totalLunas;
+
+  const body = `
+    <div class="space-y-4">
+      <div class="flex items-center gap-3 pb-3 border-b">
+        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 text-white flex items-center justify-center font-bold text-lg shadow-md flex-shrink-0">${getInitials(person.nama)}</div>
+        <div class="min-w-0 flex-1">
+          <div class="font-bold text-lg truncate">${escapeHtml(person.nama)}</div>
+          <div class="text-xs text-gray-500 truncate">${isSiswa ? `Kelas ${escapeHtml(person.kelas||'-')} • Ortu: ${escapeHtml(person.nama_orang_tua||'-')}` : `Mapel: ${escapeHtml(person.mapel||'-')}`}</div>
+        </div>
+      </div>
+      <div class="grid grid-cols-3 gap-2">
+        <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 text-center">
+          <div class="text-[10px] text-blue-700 font-semibold uppercase">Total</div>
+          <div class="text-xs font-bold text-blue-800 mt-0.5">${rupiah(totalTagihan)}</div>
+        </div>
+        <div class="bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center">
+          <div class="text-[10px] text-emerald-700 font-semibold uppercase">${isSiswa?'Dibayar':'Digaji'}</div>
+          <div class="text-xs font-bold text-emerald-800 mt-0.5">${rupiah(totalLunas)}</div>
+        </div>
+        <div class="${outstanding>0?'bg-rose-50 border-rose-100':'bg-gray-50 border-gray-100'} border rounded-lg p-3 text-center">
+          <div class="text-[10px] ${outstanding>0?'text-rose-700':'text-gray-500'} font-semibold uppercase">Outstanding</div>
+          <div class="text-xs font-bold ${outstanding>0?'text-rose-800':'text-gray-600'} mt-0.5">${rupiah(outstanding)}</div>
+        </div>
+      </div>
+      <div>
+        <div class="font-semibold text-sm mb-2 flex items-center justify-between">
+          <span>Riwayat ${isSiswa?'Invoice':'Slip Gaji'} (${invList.length})</span>
+          <button onclick="closeModal(); navigate('invoice')" class="text-xs text-orange-600 hover:underline">Lihat semua →</button>
+        </div>
+        ${invList.length === 0 ? `<div class="text-center text-gray-400 py-6 border rounded-lg bg-gray-50"><i data-lucide="inbox" class="w-8 h-8 mx-auto mb-1 text-gray-300"></i><p class="text-xs">Belum ada riwayat</p></div>` :
+        `<div class="space-y-2 max-h-[400px] overflow-y-auto pr-1">
+          ${invList.map(inv => `
+            <div class="border rounded-lg p-3 hover:bg-gray-50 transition">
+              <div class="flex justify-between items-start gap-2 mb-1">
+                <div class="min-w-0 flex-1">
+                  <div class="font-mono text-[10px] text-gray-500">${escapeHtml(inv.no_invoice)}</div>
+                  <div class="text-xs text-gray-600">${escapeHtml(inv.periode||'-')} • ${escapeHtml(inv.tanggal||'-')}</div>
+                </div>
+                <span class="text-[10px] px-2 py-0.5 rounded flex-shrink-0 ${inv.status==='lunas'?'bg-emerald-100 text-emerald-700':'bg-rose-100 text-rose-700'}">${inv.status==='lunas'?'Lunas':'Belum Bayar'}</span>
+              </div>
+              <div class="flex justify-between items-center mt-2 pt-2 border-t">
+                <span class="text-xs font-bold text-orange-600">${rupiah(inv.total)}</span>
+                <div class="flex gap-1">
+                  <button onclick="closeModal(); setTimeout(()=>openInvoiceDetail('${inv.id}'), 100)" class="text-orange-600 hover:bg-orange-50 p-1.5 rounded" title="Detail"><i data-lucide="eye" class="w-3.5 h-3.5"></i></button>
+                  <button onclick="closeModal(); setTimeout(()=>openInvoiceForm('${inv.id}'), 100)" class="text-blue-600 hover:bg-blue-50 p-1.5 rounded" title="Edit"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+                  ${inv.status !== 'lunas' && inv.jenis === 'siswa' && person.no_wa ? `
+                    <a href="https://wa.me/${formatWa(person.no_wa)}?text=${encodeURIComponent(`Halo Bpk/Ibu ${person.nama_orang_tua||''},\n\nMengingatkan tagihan *${inv.no_invoice}* periode *${inv.periode}* dengan total *${rupiah(inv.total)}*.\n\nStatus: BELUM BAYAR\n\n*Pembayaran ke:*\nBNI: 2079385983\nBCA: 4720524304\nBRI: 180701015922501\na.n. Joice Zhenrike Memmase\n\nTerima kasih 🙏\nJoy Bimbel`)}" target="_blank" class="text-green-600 hover:bg-green-50 p-1.5 rounded" title="Tagih via WA"><i data-lucide="message-circle" class="w-3.5 h-3.5"></i></a>
+                  ` : ''}
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>`}
+      </div>
+    </div>`;
+  openModal(`Rekap ${isSiswa?'Siswa':'Tentor'}`, body);
+}
+
 function getKeuanganChartData() {
   if (keuanganMode === 'bulan') {
     const year = keuanganTahun;
@@ -2242,6 +2515,40 @@ async function deleteRecord(table, id, name = 'data ini') {
     if (error) showToast('Gagal menghapus: ' + error.message, 'error');
     else showToast('Data berhasil dihapus', 'success');
   });
+}
+
+// ===== PWA =====
+function installPWA() {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  deferredInstallPrompt.userChoice.then((choice) => {
+    if (choice.outcome === 'accepted') showToast('Aplikasi berhasil diinstall!', 'success');
+    deferredInstallPrompt = null;
+    document.getElementById('install-btn')?.classList.add('hidden');
+  });
+}
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const btn = document.getElementById('install-btn');
+  if (btn) { btn.classList.remove('hidden'); if (typeof lucide !== 'undefined') lucide.createIcons(); }
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  document.getElementById('install-btn')?.classList.add('hidden');
+});
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(err => console.log('SW registration failed:', err));
+  });
+}
+
+// Deteksi standalone mode (dibuka dari ikon home screen)
+if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+  document.body.classList.add('standalone');
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
