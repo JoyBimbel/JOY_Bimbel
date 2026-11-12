@@ -14,6 +14,7 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
 <style>
   :root { --theme-50: #fff7ed; --theme-100: #ffedd5; --theme-500: #f97316; --theme-600: #ea580c; --theme-700: #c2410c; --theme-800: #9a3412; }
   .bg-orange-50 { background-color: var(--theme-50) !important; } .bg-orange-100 { background-color: var(--theme-100) !important; }
@@ -112,7 +113,6 @@
 </div>
 
 <div id="app-page" class="hidden opacity-0 transition-opacity duration-500">
-
   <div id="mobile-topbar" class="md:hidden px-4 py-3 flex items-center justify-between sticky top-0 z-30">
     <button onclick="toggleSidebar()" class="p-1.5 rounded-lg hover:bg-gray-100"><i data-lucide="menu" class="w-6 h-6"></i></button>
     <div class="flex items-center gap-2">
@@ -169,7 +169,6 @@
       <i data-lucide="log-out" class="w-4 h-4"></i><span class="text-sm">Logout</span>
     </button>
   </div>
-
 </div>
 
 <div id="modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -1059,6 +1058,20 @@ async function downloadLaporanAsWord(laporanId) {
   showToast('File Word berhasil didownload', 'success');
 }
 
+async function convertHeicToJpeg(file) {
+  const name = (file.name || '').toLowerCase();
+  const type = (file.type || '').toLowerCase();
+  const isHeic = name.endsWith('.heic') || name.endsWith('.heif') || type === 'image/heic' || type === 'image/heif';
+  if (!isHeic) return file;
+  if (typeof heic2any === 'undefined') {
+    throw new Error('Library konversi HEIC belum termuat. Coba refresh halaman.');
+  }
+  const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.85 });
+  const blob = Array.isArray(converted) ? converted[0] : converted;
+  const newName = file.name.replace(/\.(heic|heif)$/i, '.jpg') || `photo_${Date.now()}.jpg`;
+  return new File([blob], newName, { type: 'image/jpeg', lastModified: Date.now() });
+}
+
 function updateSiswaInfo(siswaId) {
   const el = document.getElementById('siswa-info');
   if (!el) return;
@@ -1096,10 +1109,11 @@ function openLaporanForm(id) {
       <div><label class="text-sm">📝 Perkembangan Siswa *</label><textarea name="catatan" required rows="3" class="w-full border rounded-lg px-3 py-2 mt-1">${escapeHtml(editing?.catatan||'')}</textarea></div>
       <div>
         <label class="text-sm">${editing ? 'Ganti Foto (Opsional, Maks 5):' : 'Foto (Maks 5) *'}</label>
-        <input type="file" id="foto-input" accept="image/*" multiple ${editing ? '' : 'required'} class="w-full border rounded-lg px-3 py-2 mt-1 text-sm" />
+        <input type="file" id="foto-input" accept="image/*,.heic,.heif" multiple ${editing ? '' : 'required'} class="w-full border rounded-lg px-3 py-2 mt-1 text-sm" />
+        <p class="text-xs text-gray-400 mt-1">💡 Mendukung JPG, PNG, dan HEIC (iPhone). Foto HEIC otomatis dikonversi ke JPG.</p>
         ${editing ? `<div class="flex gap-2 mt-2 flex-wrap">${getFotoArray(editing.foto).map(f => `<img src="${f}" class="h-16 w-16 object-cover rounded border cursor-pointer" onclick="showImagePreview('${f}')"/>`).join('')}</div>` : ''}
       </div>
-      <button type="submit" class="w-full bg-orange-600 text-white py-2 rounded-lg font-semibold">${editing ? 'Simpan Perubahan' : 'Kirim Laporan'}</button>
+      <button type="submit" id="btn-submit-laporan" class="w-full bg-orange-600 text-white py-2 rounded-lg font-semibold transition">${editing ? 'Simpan Perubahan' : 'Kirim Laporan'}</button>
     </div></form>`;
   openModal(editing ? 'Edit Laporan' : 'Buat Laporan', body, async (e) => {
     const f = e.target;
@@ -1108,24 +1122,55 @@ function openLaporanForm(id) {
     if (!files.length && !editing) { showToast('Pilih minimal 1 foto!', 'warning'); return; }
     if (files.length > 5) { showToast('Maksimal 5 foto!', 'warning'); return; }
     if (!f.siswa_id.value) { showToast('Pilih siswa terlebih dahulu!', 'warning'); return; }
+    const submitBtn = document.getElementById('btn-submit-laporan');
+    const originalBtnHTML = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.classList.add('opacity-70', 'cursor-not-allowed');
     let fotoUrls = [];
-    if (files.length > 0) {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const fileName = `laporan/${Date.now()}_${i}_${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
-        const { error: err } = await supabaseClient.storage.from('foto_laporan').upload(fileName, file);
-        if (err) { showToast("Gagal upload foto: " + err.message, 'error'); return; }
-        const { data: { publicUrl } } = supabaseClient.storage.from('foto_laporan').getPublicUrl(fileName);
-        fotoUrls.push(publicUrl);
-      }
-    } else if (editing) { fotoUrls = getFotoArray(editing.foto); }
-    const fotoString = JSON.stringify(fotoUrls);
-    const myTentorId = getMyTentorId() || DB.tentor[0]?.id;
-    const data = { tentor_id: editing ? editing.tentor_id : myTentorId, siswa_id: f.siswa_id.value, tanggal: f.tanggal.value, mapel: f.mapel.value, topik: f.topik.value, catatan: f.catatan.value, foto: fotoString };
-    if (editing) { await supabaseClient.from('laporan').update(data).eq('id', editing.id); }
-    else { await supabaseClient.from('laporan').insert([data]); }
-    showToast(editing ? 'Laporan diperbarui' : 'Laporan tersimpan', 'success');
-    closeModal();
+    try {
+      if (files.length > 0) {
+        for (let i = 0; i < files.length; i++) {
+          const originalFile = files[i];
+          submitBtn.innerHTML = `<span class="animate-pulse">📸 Memproses foto ${i+1}/${files.length}...</span>`;
+          let file;
+          try {
+            file = await convertHeicToJpeg(originalFile);
+          } catch (convErr) {
+            showToast(`Gagal konversi foto ${i+1}: ${convErr.message}`, 'error');
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
+            submitBtn.innerHTML = originalBtnHTML;
+            return;
+          }
+          submitBtn.innerHTML = `<span class="animate-pulse">☁️ Mengupload foto ${i+1}/${files.length}...</span>`;
+          const fileName = `laporan/${Date.now()}_${i}_${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
+          const { error: err } = await supabaseClient.storage.from('foto_laporan').upload(fileName, file, { contentType: file.type || 'image/jpeg' });
+          if (err) {
+            showToast("Gagal upload foto: " + err.message, 'error');
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
+            submitBtn.innerHTML = originalBtnHTML;
+            return;
+          }
+          const { data: { publicUrl } } = supabaseClient.storage.from('foto_laporan').getPublicUrl(fileName);
+          fotoUrls.push(publicUrl);
+        }
+      } else if (editing) { fotoUrls = getFotoArray(editing.foto); }
+      submitBtn.innerHTML = `<span class="animate-pulse">💾 Menyimpan laporan...</span>`;
+      const fotoString = JSON.stringify(fotoUrls);
+      const myTentorId = getMyTentorId() || DB.tentor[0]?.id;
+      const data = { tentor_id: editing ? editing.tentor_id : myTentorId, siswa_id: f.siswa_id.value, tanggal: f.tanggal.value, mapel: f.mapel.value, topik: f.topik.value, catatan: f.catatan.value, foto: fotoString };
+      if (editing) { await supabaseClient.from('laporan').update(data).eq('id', editing.id); }
+      else { await supabaseClient.from('laporan').insert([data]); }
+      showToast(editing ? 'Laporan diperbarui' : 'Laporan tersimpan', 'success');
+      closeModal();
+    } catch (err) {
+      console.error(err);
+      showToast('Terjadi kesalahan: ' + err.message, 'error');
+      submitBtn.disabled = false;
+      submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
+      submitBtn.innerHTML = originalBtnHTML;
+    }
   });
   if (selectedSiswaId) setTimeout(() => updateSiswaInfo(selectedSiswaId), 50);
 }
@@ -1497,7 +1542,6 @@ function buildInvoiceHTML(inv) {
   if (inv.jenis === 'siswa') namaPenerima = `${target?.nama_orang_tua || '-'}<br/><span class="text-sm text-gray-600">Siswa: ${target?.nama || '-'}</span>`;
   else if (inv.jenis === 'tentor') namaPenerima = `${target?.nama || '-'}<br/><span class="text-sm text-gray-600">${target?.mapel || '-'}</span>`;
   else if (inv.jenis === 'pengeluaran') namaPenerima = '🏪 Operasional Bimbel';
-
   let itemsArr = inv.items;
   if (!Array.isArray(itemsArr)) itemsArr = [];
   let docTitle = 'INVOICE';
@@ -1505,14 +1549,12 @@ function buildInvoiceHTML(inv) {
   let showBank = false;
   let totalQty = 0;
   itemsArr.forEach(it => { totalQty += Number(it.qty)||0; });
-
   if (inv.jenis === 'tentor') { docTitle = 'SLIP GAJI'; headerLabel = 'Pembayaran kepada :'; }
   else if (inv.jenis === 'pengeluaran') { docTitle = 'NOTA PENGELUARAN'; headerLabel = 'Keterangan:'; }
   else if (inv.jenis === 'siswa') {
     if (inv.status === 'lunas') headerLabel = 'Pelunasan oleh :';
     else { headerLabel = 'Ditagihkan kepada:'; showBank = true; }
   }
-
   let tableContent = '';
   if (inv.jenis === 'tentor') {
     let currentSiswaId = null, rowsHtml = '';
@@ -1554,7 +1596,6 @@ function buildInvoiceHTML(inv) {
       </tr>`).join('')}</tbody>
     </table>`;
   }
-
   return `<div class="bg-white p-6 md:p-8 max-w-2xl mx-auto border text-black relative overflow-hidden">
     <div class="flex justify-between items-start border-b pb-4 mb-4">
       <div>
@@ -1603,7 +1644,6 @@ function printInvoice(id) {
   setTimeout(() => { window.print(); setTimeout(() => { document.getElementById('print-area').innerHTML = ''; }, 1000); }, 100);
 }
 
-// ===== GRAFIK KEUANGAN =====
 function getKeuanganChartData() {
   if (keuanganMode === 'bulan') {
     const year = keuanganTahun;
@@ -1675,20 +1715,9 @@ function setKeuanganChartType(type) {
   initKeuanganChart();
 }
 
-function setKeuanganMode(mode) {
-  keuanganMode = mode;
-  renderPage();
-}
-
-function setKeuanganBulan(b) {
-  keuanganBulan = parseInt(b);
-  renderPage();
-}
-
-function setKeuanganTahun(y) {
-  keuanganTahun = parseInt(y);
-  renderPage();
-}
+function setKeuanganMode(mode) { keuanganMode = mode; renderPage(); }
+function setKeuanganBulan(b) { keuanganBulan = parseInt(b); renderPage(); }
+function setKeuanganTahun(y) { keuanganTahun = parseInt(y); renderPage(); }
 
 function initKeuanganChart() {
   const canvas = document.getElementById('keuangan-chart');
