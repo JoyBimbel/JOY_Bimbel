@@ -1,0 +1,19 @@
+{
+  "name": "Joy Bimbel",
+  "short_name": "Joy Bimbel",
+  "description": "Sistem Manajemen Bimbel Joy",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#ea580c",
+  "background_color": "#ffffff",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%23ea580c'/%3E%3Ctext x='50%25' y='50%25' font-family='Arial,sans-serif' font-size='300' font-weight='bold' fill='white' text-anchor='middle' dominant-baseline='central'%3EJ%3C/text%3E%3C/svg%3E",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
